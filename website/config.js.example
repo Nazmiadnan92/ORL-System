@@ -1,0 +1,6 @@
+// Copy this file as config.js before publishing the website.
+// The anon key is a public browser key. Never put a service_role key in this file.
+window.ORL_CONFIG = {
+  supabaseUrl: 'https://imrfmilqehcrvassuvuw.supabase.co',
+  supabaseAnonKey: 'PASTE_SUPABASE_PUBLISHABLE_OR_ANON_KEY_HERE'
+};

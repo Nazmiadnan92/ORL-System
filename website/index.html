@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ORL OT Management System</title>
+  <style>
+    :root{--navy:#274764;--blue:#50799e;--pale:#edf3f8;--paper:#fff;--canvas:#f6f3ec;--ink:#253342;--muted:#687788;--line:#dce3e8;--green:#18834b;--amber:#a86004;--red:#bc3030}
+    *{box-sizing:border-box} body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--canvas)} button,input{font:inherit} button{cursor:pointer}
+    #login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#234563,#46789d)}
+    .login-card{background:var(--paper);width:min(100%,390px);padding:34px;border-radius:16px;box-shadow:0 20px 50px #10273766}.login-mark{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;margin:0 auto 16px;background:var(--pale);color:var(--navy);font-size:24px}.login-card h1{text-align:center;font-size:21px;margin:0}.login-card p{text-align:center;color:var(--muted);margin:5px 0 22px}.field{margin-top:13px}.field label{font-weight:650;display:block;margin-bottom:5px}.field input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;outline:none}.field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #dceaf5}.primary{border:0;border-radius:9px;padding:11px 15px;background:var(--navy);color:#fff;font-weight:700}.primary:hover{background:#1c3852}.login-card .primary{width:100%;margin-top:20px}.message{min-height:20px;margin-top:13px;text-align:center;color:var(--red);font-size:13px}.note{margin-top:18px!important;font-size:12px}
+    #app{display:none;min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:240px;background:linear-gradient(#2e526e,#1f3c56);color:#deebf4;padding:17px 0}.brand{padding:0 20px 18px;color:#fff;font-weight:750;font-size:15px;border-bottom:1px solid #ffffff1f}.brand span{display:block;color:#bcd1e3;font-size:11px;font-weight:500;margin-top:3px}.nav{padding-top:13px}.nav button{display:block;width:100%;border:0;text-align:left;padding:11px 20px;background:transparent;color:#d8e6f0}.nav button.active,.nav button:hover{background:#ffffff17;color:#fff;border-left:3px solid #a8c7dd;padding-left:17px}.nav small{display:block;padding:16px 20px 5px;color:#a6c0d2;letter-spacing:.08em;font-size:10px}.main{margin-left:240px}.topbar{height:62px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 25px;position:sticky;top:0}.page-title{font-weight:750;color:var(--navy);font-size:16px}.identity{display:flex;align-items:center;gap:10px;color:var(--muted)}.role{background:var(--pale);color:var(--navy);font-size:11px;font-weight:750;padding:3px 10px;border-radius:99px}.logout{border:1px solid var(--line);background:#fff;padding:7px 10px;border-radius:7px;color:var(--ink)}.content{max-width:1180px;margin:auto;padding:24px}.welcome{margin:0 0 4px;color:var(--navy);font-size:24px}.sub{color:var(--muted);margin:0 0 22px}.stats{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:14px}.card{background:#fff;border:1px solid var(--line);border-radius:11px;padding:17px;box-shadow:0 1px 2px #17324a08}.card .n{font-size:27px;font-weight:800;color:var(--navy)}.card .l{color:var(--muted);font-size:12px;margin-top:2px}.section{margin-top:19px}.section h2{font-size:16px;color:var(--navy);margin:0 0 10px}.placeholder{padding:26px;color:var(--muted);text-align:center}.quick{display:flex;gap:10px;flex-wrap:wrap}.secondary{padding:10px 13px;border:1px solid var(--line);background:white;border-radius:8px;color:var(--navy);font-weight:650}.secondary:hover{background:var(--pale)}
+    @media(max-width:760px){.sidebar{position:static;width:auto;padding:0}.brand{padding:14px 18px}.nav{display:flex;overflow:auto;padding:0}.nav small{display:none}.nav button{white-space:nowrap;width:auto}.main{margin:0}.topbar{padding:0 16px}.identity .who{display:none}.content{padding:18px}.stats{grid-template-columns:repeat(2,1fr)}}
+    .filters{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.filters select{padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}.schedule{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px}.session h3{margin:0 0 11px;color:var(--navy);font-size:15px}.slots{display:flex;gap:7px;flex-wrap:wrap}.slot{min-width:43px;padding:8px 7px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--navy)}.slot.reserved{background:#e5e7eb;color:#59616a}.slot.confirmed{background:#dcf5e6;color:#167240;border-color:#a8dfbd}.slot.special{color:#8a5600}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.form-grid .wide{grid-column:1/-1}.form-grid input,.form-grid select,.form-grid textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px}.form-actions{margin-top:17px;display:flex;gap:10px;align-items:center}.success{color:var(--green);font-weight:650}.error{color:var(--red);font-weight:650}
+  </style>
+</head>
+<body>
+  <section id="login">
+    <form class="login-card" id="loginForm">
+      <div class="login-mark">✚</div>
+      <h1>ORL OT MANAGEMENT SYSTEM</h1>
+      <p>Sign in to continue</p>
+      <div class="field"><label for="username">Username</label><input id="username" autocomplete="username" required></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+      <button class="primary" id="signIn" type="submit">Sign In</button>
+      <div id="loginMessage" class="message"></div>
+      <p class="note">Use your ORL system username and password.</p>
+    </form>
+  </section>
+  <section id="app">
+    <aside class="sidebar">
+      <div class="brand">ORL OT MANAGEMENT SYSTEM<span>Operating Theatre Portal</span></div>
+      <nav class="nav" id="nav">
+        <small>MAIN MENU</small><button class="active" data-page="Dashboard">Dashboard</button><button data-page="OT Schedule">OT Schedule</button><button data-page="Submit Request">Submit Request</button><button data-page="My Requests">My Requests</button>
+        <small class="admin-only">ADMINISTRATION</small><button class="admin-only" data-page="Request Management">Request Management</button><button class="admin-only" data-page="Holiday Management">Holiday Management</button><button class="admin-only" data-page="User Management">User Management</button><button class="admin-only" data-page="Audit Log">Audit Log</button><button class="admin-only" data-page="Settings">Settings</button>
+      </nav>
+    </aside>
+    <main class="main"><header class="topbar"><div class="page-title" id="pageTitle">Dashboard</div><div class="identity"><span class="who" id="who"></span><span class="role" id="role"></span><button class="logout" id="logout">Sign out</button></div></header>
+      <div class="content" id="content"></div>
+    </main>
+  </section>
+  <script src="config.js"></script>
+  <script>
+  const cfg = window.ORL_CONFIG || {};
+  const $ = id => document.getElementById(id);
+  let sessionToken = sessionStorage.getItem('orl_session_token') || '';
+  let currentUser = null, pendingRequestId = null;
+  function configured(){return /^https:\/\//.test(cfg.supabaseUrl||'') && !!cfg.supabaseAnonKey && !cfg.supabaseAnonKey.includes('PASTE_')}
+  async function rpc(name, body){
+    const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${name}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.supabaseAnonKey,'Authorization':`Bearer ${cfg.supabaseAnonKey}`},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('Unable to connect to the ORL database.');
+    return r.json();
+  }
+  function renderDashboard(){
+    $('content').innerHTML = `<h1 class="welcome">Welcome, ${escapeHtml(currentUser.display_name)}</h1><p class="sub">You are signed in to the ORL OT Management System.</p><div class="stats"><div class="card"><div class="n">—</div><div class="l">Draft</div></div><div class="card"><div class="n">—</div><div class="l">Confirmed</div></div><div class="card"><div class="n">—</div><div class="l">Scheduled</div></div><div class="card"><div class="n">—</div><div class="l">Upcoming OT</div></div></div><section class="section"><h2>Quick Actions</h2><div class="card quick"><button class="primary">Submit New Request</button><button class="secondary">View OT Schedule</button></div></section><section class="section"><h2>Website migration</h2><div class="card placeholder">Login is connected. Request, schedule, slot, holiday, user, audit and settings modules will appear here as they are migrated from the existing ORL system.</div></section>`;
+  }
+  function escapeHtml(v){const d=document.createElement('div');d.textContent=v||'';return d.innerHTML}
+  function renderRequest(){
+    $('content').innerHTML=`<h1 class="welcome">Submit Request</h1><p class="sub">Complete the patient details. You will choose the available OT slot immediately after confirmation.</p><form id="requestForm" class="card"><div class="form-grid"><div><label>Patient IC</label><input name="patient_ic" required></div><div><label>MRN</label><input name="mrn" required></div><div><label>Patient Name</label><input name="patient_name" required></div><div><label>Surgery</label><input name="surgery" required></div><div><label>Diagnosis</label><input name="diagnosis" required></div><div><label>Doctor</label><input name="doctor" required></div><div><label>Specialist</label><input name="specialist" required></div><div><label>Sub-specialty</label><select name="sub_specialty"><option>Gen ORL</option><option>Rhinology</option><option>Otology</option><option>Head & Neck</option><option>Paeds</option></select></div><div><label>Phone</label><input name="phone" required></div><div class="wide"><label>Remark</label><textarea name="remark" rows="3"></textarea></div></div><div class="form-actions"><button class="primary" type="submit">Confirm and Choose Slot</button><span id="requestMessage"></span></div></form>`;
+    $('requestForm').onsubmit=submitRequest;
+  }
+  async function submitRequest(e){
+    e.preventDefault();const data=Object.fromEntries(new FormData(e.target).entries()),msg=$('requestMessage');msg.textContent='Saving request…';
+    try{const id=await rpc('orl_create_request',{p_session_token:sessionToken,p_data:data});await rpc('orl_confirm_request',{p_session_token:sessionToken,p_request_id:id});pendingRequestId=id;msg.className='success';msg.textContent='Request confirmed. Choose an available slot.';setTimeout(renderSchedule,350)}catch(err){msg.className='error';msg.textContent=err.message}
+  }
+  async function chooseSlot(slotId){
+    if(!pendingRequestId)return;try{const result=await rpc('orl_assign_slot',{p_session_token:sessionToken,p_request_id:pendingRequestId,p_slot_id:slotId});pendingRequestId=null;alert(result==='CONFIRMED'?'Patient assigned and confirmed.':'Slot reserved for Admin approval.');renderSchedule()}catch(err){alert(err.message);loadSchedule()}
+  }
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  async function renderSchedule(){
+    const now=new Date(), y=now.getFullYear(), m=now.getMonth()+1;
+    $('content').innerHTML=`<h1 class="welcome">OT Schedule</h1><p class="sub">Sunday and Wednesday OT sessions. Green is confirmed; grey is reserved.</p><div class="card filters"><div><label>Year</label><select id="scheduleYear">${[2026,2027,2028,2029,2030,2031].map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}</select></div><div><label>Month</label><select id="scheduleMonth">${months.map((x,i)=>`<option value="${i+1}" ${i+1===m?'selected':''}>${x}</option>`).join('')}</select></div><button class="primary" id="loadSchedule">Load Schedule</button></div><div id="scheduleList" class="schedule"></div>`;
+    $('loadSchedule').onclick=loadSchedule; await loadSchedule();
+  }
+  async function loadSchedule(){
+    const list=$('scheduleList');list.innerHTML='<div class="card placeholder">Loading OT slots…</div>';
+    try{const rows=await rpc('orl_get_schedule',{p_session_token:sessionToken,p_year:+$('scheduleYear').value,p_month:+$('scheduleMonth').value});list.innerHTML=rows.map(s=>`<article class="card session"><h3>${escapeHtml(s.day_name)}, ${s.ot_date}</h3><div class="slots">${s.slots.map(sl=>{const special=sl.type==='SPECIAL',pick=pendingRequestId&&sl.status==='AVAILABLE'&&(!special||currentUser.role!=='STAFF');return `<button class="slot ${sl.status.toLowerCase()} ${special?'special':''}" ${pick?`onclick="chooseSlot('${sl.id}')"`:''} ${pick?'':'disabled'} title="${sl.patient_name?escapeHtml(sl.patient_name):sl.status}">${special?'★ ':''}S${sl.number}</button>`}).join('')}</div></article>`).join('')||'<div class="card placeholder">No OT sessions in this month.</div>'}
+    catch(e){list.innerHTML=`<div class="card placeholder">${escapeHtml(e.message)}</div>`}
+  }
+  function showApp(){ $('login').style.display='none';$('app').style.display='block';$('who').textContent=currentUser.display_name;$('role').textContent=currentUser.role.replace('_',' ');document.querySelectorAll('.admin-only').forEach(el=>el.style.display=currentUser.role==='STAFF'?'none':'');renderDashboard(); }
+  async function restore(){if(!sessionToken || !configured()) return;try {const rows=await rpc('orl_current_user',{p_session_token:sessionToken});if(rows[0]){currentUser=rows[0];showApp()}}catch(e){sessionStorage.removeItem('orl_session_token')}}
+  $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const message=$('loginMessage');if(!configured()){message.textContent='Website connection has not been configured yet.';return}const btn=$('signIn');btn.disabled=true;btn.textContent='Signing in…';message.textContent='';try{const rows=await rpc('orl_login',{p_username:$('username').value.trim(),p_password:$('password').value});if(!rows[0]) throw new Error('Invalid username or password.');sessionToken=rows[0].session_token;sessionStorage.setItem('orl_session_token',sessionToken);currentUser=rows[0];showApp()}catch(err){message.textContent=err.message||'Sign in failed.'}finally{btn.disabled=false;btn.textContent='Sign In'}});
+  $('logout').addEventListener('click',async()=>{try{if(configured()&&sessionToken)await rpc('orl_logout',{p_session_token:sessionToken})}catch(e){}sessionStorage.removeItem('orl_session_token');location.reload()});
+  $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(!b)return;document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('pageTitle').textContent=b.dataset.page;if(b.dataset.page==='Dashboard')return renderDashboard();if(b.dataset.page==='OT Schedule')return renderSchedule();if(b.dataset.page==='Submit Request')return renderRequest();$('content').innerHTML=`<section class="card placeholder"><h2>${escapeHtml(b.dataset.page)}</h2><p>This module is next in the migration from the current ORL system.</p></section>`});
+  restore();
+  </script>
+</body>
+</html>
