@@ -61,3 +61,5 @@
   tbody td{grid-template-columns:1fr;gap:3px}tbody td::before{margin-bottom:2px}
   .post-date .slots{grid-template-columns:repeat(3,1fr)}
 }
+
+@media (max-width:800px){body[data-theme] .brand{background:var(--nav-start)}}
