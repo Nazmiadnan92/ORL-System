@@ -1,0 +1,63 @@
+/* Mobile layout only. Desktop presentation remains unchanged. */
+@media (max-width:800px){
+  body{font-size:15px;overflow-x:hidden}
+  body.menu-open{overflow:hidden}
+  body.menu-open::after{content:"";position:fixed;inset:0;background:#10283b99;z-index:8}
+  aside{width:min(86vw,320px);z-index:10;box-shadow:12px 0 35px #10283b55;overflow-y:auto}
+  .brand{position:sticky;top:0;z-index:1;background:#2c526e;padding:18px 20px}
+  nav{padding-bottom:28px}
+  nav span{font-size:11px;padding-top:17px}
+  nav button{min-height:46px;font-size:15px}
+  main{min-width:0}
+  header{height:58px;padding:0 12px;gap:8px}
+  header>strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+  header>div{gap:6px}
+  header b{font-size:10px;padding:4px 7px}
+  #logout{padding:7px 9px;font-size:12px;white-space:nowrap}
+  #menu{min-width:42px;min-height:42px;border-radius:8px!important;color:var(--navy)}
+  #content{width:100%;padding:16px 12px 28px}
+  .title{font-size:21px;line-height:1.25}.sub{margin-bottom:16px}
+  .card{border-radius:10px;padding:15px}
+  .toolbar{display:grid;grid-template-columns:1fr;margin-bottom:13px;align-items:stretch}
+  .toolbar>*{width:100%}.toolbar label{min-width:0}.toolbar button{min-height:44px}
+  input,select,textarea{font-size:16px!important;min-height:44px}
+  .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px}
+  .actions button{min-height:42px;white-space:normal}
+  .cards,.dashboard-stats,.dashboard-actions,.dashboard-grid,.health-cards{grid-template-columns:1fr!important}
+  .dashboard-stat{min-height:92px}.dashboard-grid{gap:12px;margin-top:12px}
+  .dashboard-panel.block{margin-top:12px}.dashboard-panel>h2{padding:13px 15px}
+  .dashboard-next{padding:15px}.dashboard-list button{flex-direction:column;padding:13px 15px}
+  .list-date{text-align:left;white-space:normal}.dashboard-special{grid-template-columns:1fr;padding:12px}
+  .activity-list div{grid-template-columns:1fr;gap:3px;padding:11px 0}.activity-list small{grid-column:auto}
+  .dashboard-action{grid-template-columns:42px 1fr}.dashboard-action b{font-size:23px}
+  .table-wrap{overflow:visible;border:0;background:transparent;border-radius:0}
+  table{display:block;min-width:0;width:100%}thead{display:none}tbody{display:block}
+  tbody tr{display:block;background:white;border:1px solid var(--line);border-radius:11px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px #17324a0d}
+  tbody td{display:grid;grid-template-columns:minmax(112px,36%) minmax(0,1fr);gap:10px;border-bottom:1px solid var(--line);padding:10px 12px;overflow-wrap:anywhere}
+  tbody td:last-child{border-bottom:0}tbody td::before{content:attr(data-label);font-size:12px;font-weight:750;color:var(--navy)}
+  tbody td .actions{margin-top:0;grid-template-columns:1fr}
+  .modal{padding:0;align-items:end}.dialog{width:100%;max-height:94vh;border-radius:16px 16px 0 0;padding:22px 15px calc(18px + env(safe-area-inset-bottom))}
+  .dialog h2{font-size:19px;padding-right:32px}.dialog .grid{gap:5px}.dialog .field label{margin-top:9px}
+  .db-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.db-tabs button{min-height:44px}
+  .db-panel{padding:14px}.db-danger-zone{padding:12px}
+  #toast{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));text-align:center}
+}
+
+@media (max-width:680px){
+  .month-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px}
+  .month-tab{min-height:55px;padding:7px}
+  .schedule.old-style{display:block}.session-card{margin-bottom:12px}
+  .session-head{display:block;padding:13px}.session-controls{margin-top:10px;width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .session-controls button{min-height:40px;white-space:normal}.session-toggle{border:1px solid var(--line);border-radius:7px;background:white}
+  .collapsed-slots{padding:0 13px 13px;gap:6px}.collapsed-slot{flex:1 0 42px;text-align:center;padding:8px 5px}
+  .slot-grid{grid-template-columns:1fr!important}.slot-detail{border-right:0;padding:13px}.patient-meta{font-size:13px;line-height:1.6}
+  .slot-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.slot-actions button{min-height:42px;white-space:normal}
+  .special-directory-row{align-items:stretch;flex-direction:column}.special-directory-row button{width:100%;min-height:40px}
+  .post-date .slots{display:grid;grid-template-columns:repeat(4,1fr)}.post-date .slot{min-width:0;min-height:42px}
+}
+
+@media (max-width:430px){
+  .actions,.slot-actions,.session-controls,.db-tabs{grid-template-columns:1fr}
+  tbody td{grid-template-columns:1fr;gap:3px}tbody td::before{margin-bottom:2px}
+  .post-date .slots{grid-template-columns:repeat(3,1fr)}
+}
