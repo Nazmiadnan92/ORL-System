@@ -1,0 +1,11 @@
+.schedule-info{flex-basis:100%;font-size:12px;color:var(--muted)}
+.schedule.old-style{grid-template-columns:repeat(3,minmax(280px,1fr));align-items:start}
+.session-card{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;box-shadow:0 2px 5px #17324a10;border-top:4px solid var(--blue)}
+.session-card.holiday{border-top-color:var(--red)}.session-card.holiday .session-head{background:#fff8f8}.session-card.cancelled{border-top-color:#d28b19}
+.session-head{padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}.session-date{font-weight:750;color:var(--navy)}.session-date em{font-style:normal;color:var(--red);font-weight:600}
+.session-summary{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.session-summary span{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:3px 8px;color:var(--muted)}
+.session-controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.session-toggle{border:0;background:none;color:var(--navy);font-size:12px;font-weight:700}
+.slot-grid{display:none;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}.session-card.open .slot-grid{display:grid}
+.slot-detail{min-height:85px;padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.slot-detail.reserved{background:#f1f2f4}.slot-detail.confirmed{background:#effcf4}
+.slot-title{display:flex;justify-content:space-between;gap:6px;color:var(--muted);font-size:12px;margin-bottom:5px}.patient{display:block;margin-bottom:3px}.patient-meta{color:var(--muted);font-size:12px;line-height:1.55}.slot-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.muted{color:var(--muted);font-size:12px}
+@media(max-width:1100px){.schedule.old-style{grid-template-columns:repeat(2,minmax(280px,1fr))}}@media(max-width:680px){.schedule.old-style{grid-template-columns:1fr}.slot-grid{grid-template-columns:1fr}}
