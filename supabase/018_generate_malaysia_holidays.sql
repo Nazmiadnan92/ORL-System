@@ -66,9 +66,20 @@ begin
       v_holiday_date:=to_date(date_text||' '||p_year,'DD Mon YYYY');
       found_count:=found_count+1;
       insert into public.orl_holidays(holiday_date,title,description,created_by)
-      values(v_holiday_date,holiday_name,'',u.id)
+      values(v_holiday_date,holiday_name,states_text,u.id)
       on conflict(holiday_date) do nothing;
-      if found then inserted_count:=inserted_count+1; end if;
+      if found then
+        inserted_count:=inserted_count+1;
+      else
+        update public.orl_holidays
+        set description=case
+              when description='' then states_text
+              else regexp_replace(description,'^Generated from Calendar Malaysia [0-9]{4}[[:space:]]+—[[:space:]]*','')
+            end,
+            updated_at=now()
+        where holiday_date=v_holiday_date
+          and (description='' or description like 'Generated from Calendar Malaysia %');
+      end if;
     end if;
   end loop;
 
@@ -76,9 +87,9 @@ begin
     raise exception 'Calendar Malaysia returned a page, but its holiday table could not be read for %.',p_year;
   end if;
 
-  -- Remove the old generated source label from records created by earlier versions.
+  -- Keep only the applicable state information in old generated descriptions.
   update public.orl_holidays
-  set description='',updated_at=now()
+  set description=regexp_replace(description,'^Generated from Calendar Malaysia [0-9]{4}[[:space:]]+—[[:space:]]*',''),updated_at=now()
   where extract(year from holiday_date)=p_year
     and description like 'Generated from Calendar Malaysia %';
 
