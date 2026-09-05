@@ -17,10 +17,10 @@ as $$
 declare
   u public.orl_users%rowtype;
   response extensions.http_response;
-  row_match text[];
-  cell_match text[];
-  cells text[];
-  cell_text text;
+  item text[];
+  date_text text;
+  holiday_name text;
+  states_text text;
   states_lower text;
   holiday_date date;
   found_count integer:=0;
@@ -34,51 +34,46 @@ begin
     raise exception 'Year must be between 2026 and 2100.';
   end if;
 
-  perform set_config('http.curlopt_useragent','Mozilla/5.0 (compatible; ORLOMS Holiday Generator/1.0)',true);
-  perform set_config('http.curlopt_timeout_ms','20000',true);
+  -- The reader bridge prevents Cloudflare from returning a different page to Supabase.
+  -- It receives only the public calendar URL; no ORL or patient data is transmitted.
+  perform set_config('http.curlopt_useragent','ORLOMS Holiday Generator/1.1',true);
+  perform set_config('http.curlopt_timeout_ms','30000',true);
 
   select * into response
-  from extensions.http_get(('https://calendarmalaysia.com/public-holidays-'||p_year||'/')::varchar);
+  from extensions.http_get(('https://r.jina.ai/http://calendarmalaysia.com/public-holidays-'||p_year||'/')::varchar);
 
   if response.status<>200 then
     raise exception 'Calendar Malaysia has no available holiday page for %.',p_year;
   end if;
 
-  for row_match in
-    select match from regexp_matches(response.content,'<tr[^>]*>(.*?)</tr>','gis') as rows(match)
+  for item in
+    select match
+    from regexp_matches(
+      response.content,
+      E'\\|[ \\t]*([^|\\r\\n]+)[ \\t]*\\|[ \\t]*([^|\\r\\n]+)[ \\t]*\\|[ \\t]*([^|\\r\\n]+)[ \\t]*\\|[ \\t]*([^|\\r\\n]+)[ \\t]*\\|',
+      'g'
+    ) as holiday_rows(match)
   loop
-    cells:=array[]::text[];
-    for cell_match in
-      select match from regexp_matches(row_match[1],'<td[^>]*>(.*?)</td>','gis') as cells_found(match)
-    loop
-      cell_text:=regexp_replace(cell_match[1],'<br[[:space:]]*/?>',' ','gi');
-      cell_text:=regexp_replace(cell_text,'<[^>]+>','','gi');
-      cell_text:=replace(replace(replace(replace(cell_text,'&amp;','&'),'&nbsp;',' '),'&#8217;',''''),'&#8211;','-');
-      cell_text:=trim(regexp_replace(cell_text,'[[:space:]]+',' ','g'));
-      cells:=array_append(cells,cell_text);
-    end loop;
+    date_text:=trim(item[1]);
+    holiday_name:=trim(item[3]);
+    states_text:=trim(item[4]);
+    if date_text!~ '^[0-9]{1,2}[[:space:]][A-Za-z]{3}$' then continue; end if;
 
-    if coalesce(array_length(cells,1),0)=4 then
-      states_lower:=lower(cells[4]);
-      if states_lower='national'
-         or (states_lower like 'national%' and states_lower not like '%except%kedah%')
-         or states_lower like '%kedah%' then
-        begin
-          holiday_date:=to_date(cells[1]||' '||p_year,'DD Mon YYYY');
-        exception when others then
-          continue;
-        end;
-        found_count:=found_count+1;
-        insert into public.orl_holidays(holiday_date,title,description,created_by)
-        values(holiday_date,cells[3],'Generated from Calendar Malaysia '||p_year||' — '||cells[4],u.id)
-        on conflict(holiday_date) do nothing;
-        if found then inserted_count:=inserted_count+1; end if;
-      end if;
+    states_lower:=lower(states_text);
+    if states_lower='national'
+       or (states_lower like 'national%' and states_lower not like '%except%kedah%')
+       or states_lower like '%kedah%' then
+      holiday_date:=to_date(date_text||' '||p_year,'DD Mon YYYY');
+      found_count:=found_count+1;
+      insert into public.orl_holidays(holiday_date,title,description,created_by)
+      values(holiday_date,holiday_name,'Generated from Calendar Malaysia '||p_year||' — '||states_text,u.id)
+      on conflict(holiday_date) do nothing;
+      if found then inserted_count:=inserted_count+1; end if;
     end if;
   end loop;
 
   if found_count=0 then
-    raise exception 'No National or Kedah holidays could be read for %.',p_year;
+    raise exception 'Calendar Malaysia returned a page, but its holiday table could not be read for %.',p_year;
   end if;
 
   insert into public.orl_audit_log(user_id,user_name,user_role,action,record_type,record_id,details)
