@@ -125,7 +125,7 @@ declare
 begin
   u:=public.orl_require_webmaster_password(p_session_token,p_password);
   select count(*)::integer into removed_count from public.orl_holidays;
-  delete from public.orl_holidays;
+  delete from public.orl_holidays where id is not null;
   insert into public.orl_audit_log(user_id,user_name,user_role,action,record_type,record_id,details)
   values(u.id,u.display_name,u.role,'ALL_HOLIDAYS_CLEARED','HOLIDAY','ALL',removed_count||' holiday/block record(s) permanently removed');
   return removed_count;
