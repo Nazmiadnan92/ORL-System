@@ -66,7 +66,7 @@ begin
       v_holiday_date:=to_date(date_text||' '||p_year,'DD Mon YYYY');
       found_count:=found_count+1;
       insert into public.orl_holidays(holiday_date,title,description,created_by)
-      values(v_holiday_date,holiday_name,'Generated from Calendar Malaysia '||p_year||' — '||states_text,u.id)
+      values(v_holiday_date,holiday_name,'',u.id)
       on conflict(holiday_date) do nothing;
       if found then inserted_count:=inserted_count+1; end if;
     end if;
@@ -75,6 +75,12 @@ begin
   if found_count=0 then
     raise exception 'Calendar Malaysia returned a page, but its holiday table could not be read for %.',p_year;
   end if;
+
+  -- Remove the old generated source label from records created by earlier versions.
+  update public.orl_holidays
+  set description='',updated_at=now()
+  where extract(year from holiday_date)=p_year
+    and description like 'Generated from Calendar Malaysia %';
 
   insert into public.orl_audit_log(user_id,user_name,user_role,action,record_type,record_id,details)
   values(u.id,u.display_name,u.role,'HOLIDAYS_GENERATED','HOLIDAY',p_year::text,
