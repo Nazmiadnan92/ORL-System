@@ -136,4 +136,6 @@ grant execute on function public.orl_generate_public_holidays(uuid,integer) to a
 revoke all on function public.orl_clear_all_holidays(uuid,text) from public;
 grant execute on function public.orl_clear_all_holidays(uuid,text) to anon,authenticated;
 
+notify pgrst, 'reload schema';
+
 commit;
