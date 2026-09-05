@@ -23,6 +23,7 @@ declare
   states_text text;
   states_lower text;
   v_holiday_date date;
+  v_replacement_date date;
   found_count integer:=0;
   inserted_count integer:=0;
 begin
@@ -61,8 +62,8 @@ begin
 
     states_lower:=lower(states_text);
     if states_lower='national'
-       or (states_lower like 'national%' and states_lower not like '%except%kedah%')
-       or states_lower like '%kedah%' then
+       or (states_lower like 'national except%' and states_lower not like '%kedah%')
+       or (states_lower not like 'national%' and states_lower like '%kedah%') then
       v_holiday_date:=to_date(date_text||' '||p_year,'DD Mon YYYY');
       found_count:=found_count+1;
       insert into public.orl_holidays(holiday_date,title,description,created_by)
@@ -76,6 +77,17 @@ begin
             updated_at=now()
         where holiday_date=v_holiday_date
           and (description='' or description like 'Generated from Calendar Malaysia %');
+      end if;
+
+      -- Kedah observes Friday as its weekly holiday. A Friday public holiday
+      -- closes the clinic on the following Sunday as a replacement holiday.
+      if extract(isodow from v_holiday_date)=5 then
+        v_replacement_date:=v_holiday_date+2;
+        found_count:=found_count+1;
+        insert into public.orl_holidays(holiday_date,title,description,created_by)
+        values(v_replacement_date,holiday_name||' (Replacement Holiday)','Kedah',u.id)
+        on conflict(holiday_date) do nothing;
+        if found then inserted_count:=inserted_count+1; end if;
       end if;
     end if;
   end loop;
