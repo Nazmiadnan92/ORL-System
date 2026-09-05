@@ -110,7 +110,30 @@ begin
   return jsonb_build_object('year',p_year,'matched',found_count,'inserted',inserted_count,'skipped',found_count-inserted_count);
 end $$;
 
+create or replace function public.orl_clear_all_holidays(
+  p_session_token uuid,
+  p_password text
+)
+returns integer
+language plpgsql
+security definer
+set search_path=public,extensions
+as $$
+declare
+  u public.orl_users%rowtype;
+  removed_count integer;
+begin
+  u:=public.orl_require_webmaster_password(p_session_token,p_password);
+  select count(*)::integer into removed_count from public.orl_holidays;
+  delete from public.orl_holidays;
+  insert into public.orl_audit_log(user_id,user_name,user_role,action,record_type,record_id,details)
+  values(u.id,u.display_name,u.role,'ALL_HOLIDAYS_CLEARED','HOLIDAY','ALL',removed_count||' holiday/block record(s) permanently removed');
+  return removed_count;
+end $$;
+
 revoke all on function public.orl_generate_public_holidays(uuid,integer) from public;
 grant execute on function public.orl_generate_public_holidays(uuid,integer) to anon,authenticated;
+revoke all on function public.orl_clear_all_holidays(uuid,text) from public;
+grant execute on function public.orl_clear_all_holidays(uuid,text) to anon,authenticated;
 
 commit;
