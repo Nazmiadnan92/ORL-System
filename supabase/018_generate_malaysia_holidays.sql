@@ -34,6 +34,9 @@ begin
     raise exception 'Year must be between 2026 and 2100.';
   end if;
 
+  perform set_config('http.curlopt_useragent','Mozilla/5.0 (compatible; ORLOMS Holiday Generator/1.0)',true);
+  perform set_config('http.curlopt_timeout_ms','20000',true);
+
   select * into response
   from extensions.http_get(('https://calendarmalaysia.com/public-holidays-'||p_year||'/')::varchar);
 
@@ -42,11 +45,11 @@ begin
   end if;
 
   for row_match in
-    select m from regexp_matches(response.content,'<tr[^>]*>(.*?)</tr>','gis') as m
+    select match from regexp_matches(response.content,'<tr[^>]*>(.*?)</tr>','gis') as rows(match)
   loop
     cells:=array[]::text[];
     for cell_match in
-      select m from regexp_matches(row_match[1],'<td[^>]*>(.*?)</td>','gis') as m
+      select match from regexp_matches(row_match[1],'<td[^>]*>(.*?)</td>','gis') as cells_found(match)
     loop
       cell_text:=regexp_replace(cell_match[1],'<br[[:space:]]*/?>',' ','gi');
       cell_text:=regexp_replace(cell_text,'<[^>]+>','','gi');
