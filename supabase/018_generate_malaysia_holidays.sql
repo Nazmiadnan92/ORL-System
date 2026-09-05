@@ -22,7 +22,7 @@ declare
   holiday_name text;
   states_text text;
   states_lower text;
-  holiday_date date;
+  v_holiday_date date;
   found_count integer:=0;
   inserted_count integer:=0;
 begin
@@ -63,10 +63,10 @@ begin
     if states_lower='national'
        or (states_lower like 'national%' and states_lower not like '%except%kedah%')
        or states_lower like '%kedah%' then
-      holiday_date:=to_date(date_text||' '||p_year,'DD Mon YYYY');
+      v_holiday_date:=to_date(date_text||' '||p_year,'DD Mon YYYY');
       found_count:=found_count+1;
       insert into public.orl_holidays(holiday_date,title,description,created_by)
-      values(holiday_date,holiday_name,'Generated from Calendar Malaysia '||p_year||' — '||states_text,u.id)
+      values(v_holiday_date,holiday_name,'Generated from Calendar Malaysia '||p_year||' — '||states_text,u.id)
       on conflict(holiday_date) do nothing;
       if found then inserted_count:=inserted_count+1; end if;
     end if;
