@@ -72,10 +72,7 @@ begin
         inserted_count:=inserted_count+1;
       else
         update public.orl_holidays
-        set description=case
-              when description='' then states_text
-              else regexp_replace(description,'^Generated from Calendar Malaysia [0-9]{4}[[:space:]]+—[[:space:]]*','')
-            end,
+        set description=states_text,
             updated_at=now()
         where holiday_date=v_holiday_date
           and (description='' or description like 'Generated from Calendar Malaysia %');
@@ -89,7 +86,8 @@ begin
 
   -- Keep only the applicable state information in old generated descriptions.
   update public.orl_holidays
-  set description=regexp_replace(description,'^Generated from Calendar Malaysia [0-9]{4}[[:space:]]+—[[:space:]]*',''),updated_at=now()
+  set description=trim(regexp_replace(description,'^Generated from Calendar Malaysia [0-9]{4}[^A-Za-z]*','')),
+      updated_at=now()
   where extract(year from holiday_date)=p_year
     and description like 'Generated from Calendar Malaysia %';
 
