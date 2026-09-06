@@ -123,6 +123,14 @@ function show(){$('#login').hidden=true;$('#app').hidden=false;$('#who').textCon
 $('#loginForm').onsubmit=async e=>{e.preventDefault();const b=$('#signIn');b.disabled=true;b.textContent='Signing in…';$('#loginMessage').textContent='';try{const rows=await rpc('orl_login',{p_username:$('#username').value.trim(),p_password:$('#password').value});if(!rows[0])throw new Error('Invalid username or password.');token=rows[0].session_token;sessionStorage.setItem('orl_session_token',token);user=rows[0];show()}catch(x){$('#loginMessage').textContent=x.message}finally{b.disabled=false;b.textContent='Sign In'}};
 $('#logout').onclick=async()=>{try{await rpc('orl_logout',{p_session_token:token})}catch{}sessionStorage.clear();location.reload()};$('#nav').onclick=e=>{const b=e.target.closest('[data-page]');if(b)go(b.dataset.page)};$('#menu').onclick=()=>document.body.classList.toggle('menu-open');$('#modal').onclick=e=>{if(e.target===$('#modal'))closeModal()};restore();
 
+const renderDashboardPage=dashboard;
+dashboard=async function(){
+  await renderDashboardPage();
+  const content=$('#content'),findSection=$('#patientSearch')?.closest('section');
+  const quickSection=[...content.querySelectorAll('section')].find(section=>section.querySelector(':scope > h2')?.textContent.trim()==='Quick Actions');
+  if(quickSection&&findSection)content.insertBefore(quickSection,findSection);
+};
+
 // Request age and role-aware slot editing (package 022).
 function malaysiaIcAge(ic,at=new Date()){const raw=String(ic||'').trim();if(!/^\d{6}(?:-?\d{2})(?:-?\d{4})$/.test(raw))return null;const n=raw.replace(/\D/g,''),yy=+n.slice(0,2),mm=+n.slice(2,4),dd=+n.slice(4,6);let year=2000+yy,dob=new Date(year,mm-1,dd);if(dob>at){year=1900+yy;dob=new Date(year,mm-1,dd)}if(dob.getFullYear()!==year||dob.getMonth()!==mm-1||dob.getDate()!==dd)return null;let age=at.getFullYear()-year;if(at.getMonth()<mm-1||(at.getMonth()===mm-1&&at.getDate()<dd))age--;return age>=0&&age<=130?age:null}
 function bindAgeToIc(form,at=new Date()){const ic=form.elements.patient_ic,age=form.elements.age;if(!ic||!age)return;const sync=()=>{const calculated=malaysiaIcAge(ic.value,at);if(calculated===null){if(age.dataset.auto==='1')age.value='';age.readOnly=false;age.dataset.auto='0';age.placeholder='Enter age manually'}else{age.value=calculated;age.readOnly=true;age.dataset.auto='1';age.placeholder='Calculated from Patient IC'}};ic.addEventListener('input',sync);sync()}
