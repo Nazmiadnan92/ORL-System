@@ -33,5 +33,6 @@ button[onclick^="reassignSlot"]{font-size:0}button[onclick^="reassignSlot"]::bef
 .slot-list-head span{padding:9px 7px;overflow-wrap:anywhere}.slot-list-head span:nth-child(2)::after{content:" / Postpone"}
 .slot-cell{padding:10px 7px;font-size:12px}.slot-actions-cell .slot-actions{gap:5px}.slot-actions-cell button{font-size:11px;padding:6px 4px}.patient-postpone{display:inline-block;margin-top:7px;font-size:10px}
 .slot-detail.slot-row .slot-cell:nth-child(6){font-weight:700}
+.slot-actions-cell button[onclick^="reassignSlot"]{font-size:0}.slot-actions-cell button[onclick^="reassignSlot"]::before{font-size:11px}
 @media(max-width:1100px){.slot-grid{overflow:visible}.slot-list-head{display:none}.slot-detail.slot-row{min-width:0;display:grid;grid-template-columns:1fr 1fr}.slot-cell{display:block;border-right:0;border-bottom:1px solid var(--line);padding:11px 12px}.slot-cell::before{content:attr(data-label);display:block;color:var(--navy);font-size:10px;font-weight:750;text-transform:uppercase;margin-bottom:5px}.slot-actions-cell{grid-column:1/-1}.slot-actions-cell .slot-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.slot-detail.slot-row{grid-template-columns:1fr}.slot-actions-cell{grid-column:auto}.slot-actions-cell .slot-actions{grid-template-columns:1fr}}
