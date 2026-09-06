@@ -42,11 +42,6 @@ begin
   return result;
 end $$;
 
-update public.orl_requests
-set age=public.orl_age_from_ic(patient_ic,(created_at at time zone 'Asia/Kuala_Lumpur')::date)
-where age is null
-  and public.orl_age_from_ic(patient_ic,(created_at at time zone 'Asia/Kuala_Lumpur')::date) is not null;
-
 create or replace function public.orl_create_request(p_session_token uuid,p_data jsonb)
 returns uuid language plpgsql security definer set search_path=public,extensions as $$
 declare
