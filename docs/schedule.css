@@ -25,6 +25,7 @@ button[onclick^="reassignSlot"]{font-size:0}button[onclick^="reassignSlot"]::bef
 .slot-detail.slot-row{min-height:0;padding:0;border-right:0;border-bottom:1px solid var(--line)}.slot-detail.slot-row:last-child{border-bottom:0}.slot-cell{min-width:0;padding:11px 10px;border-right:1px solid var(--line);overflow-wrap:anywhere}.slot-cell:last-child{border-right:0}.slot-cell small{display:block;color:var(--muted);margin-top:3px}.slot-cell.slot-title{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;margin:0;color:var(--navy)}.slot-cell.slot-title .badge{margin-top:6px}.slot-actions-cell{background:#ffffff80}.slot-actions-cell .slot-actions{margin-top:0;display:grid;grid-template-columns:1fr;align-items:start}.slot-actions-cell button{width:100%;white-space:normal}.slot-remark{margin-top:7px!important}.collapsed-slot.selectable{cursor:pointer;border-color:var(--blue);box-shadow:0 0 0 2px color-mix(in srgb,var(--blue) 14%,transparent)}.collapsed-slot.selectable:hover{background:var(--navy);color:white;transform:translateY(-1px)}
 @media(max-width:800px){.slot-grid{overflow:visible}.slot-list-head{display:none}.slot-detail.slot-row{min-width:0;display:grid;grid-template-columns:1fr 1fr}.slot-cell{display:block;border-right:0;border-bottom:1px solid var(--line);padding:11px 12px}.slot-cell::before{content:attr(data-label);display:block;color:var(--navy);font-size:10px;font-weight:750;text-transform:uppercase;margin-bottom:5px}.slot-actions-cell{grid-column:1/-1}.slot-actions-cell .slot-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.slot-detail.slot-row{grid-template-columns:1fr}.slot-actions-cell{grid-column:auto}.slot-actions-cell .slot-actions{grid-template-columns:1fr}}
+
 .age-help{display:block;color:var(--muted);font-size:11px;margin-top:5px}.field input[readonly],.field textarea[readonly]{background:#f1f3f5;color:#586474;cursor:not-allowed}.edit-permission-note{background:var(--pale);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--navy);font-size:12px}
 
 /* Fit the complete OT list within the page; switch to labelled cards on narrower screens. */
@@ -36,3 +37,14 @@ button[onclick^="reassignSlot"]{font-size:0}button[onclick^="reassignSlot"]::bef
 .slot-actions-cell button[onclick^="reassignSlot"]{font-size:0}.slot-actions-cell button[onclick^="reassignSlot"]::before{font-size:11px}
 @media(max-width:1100px){.slot-grid{overflow:visible}.slot-list-head{display:none}.slot-detail.slot-row{min-width:0;display:grid;grid-template-columns:1fr 1fr}.slot-cell{display:block;border-right:0;border-bottom:1px solid var(--line);padding:11px 12px}.slot-cell::before{content:attr(data-label);display:block;color:var(--navy);font-size:10px;font-weight:750;text-transform:uppercase;margin-bottom:5px}.slot-actions-cell{grid-column:1/-1}.slot-actions-cell .slot-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.slot-detail.slot-row{grid-template-columns:1fr}.slot-actions-cell{grid-column:auto}.slot-actions-cell .slot-actions{grid-template-columns:1fr}}
+
+/* Final compact-screen behaviour: keep the complete row and scroll it horizontally. */
+@media(max-width:1100px){
+  .slot-grid{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+  .slot-list-head,.slot-detail.slot-row{display:grid;grid-template-columns:minmax(110px,.85fr) minmax(180px,1.35fr) 65px minmax(100px,.8fr) minmax(160px,1.2fr) minmax(180px,1.35fr) minmax(145px,1.1fr) minmax(145px,1fr) minmax(150px,1.1fr);min-width:1235px;width:100%}
+  .slot-list-head{display:grid}
+  .slot-cell{display:block;border-right:1px solid var(--line);border-bottom:0;padding:10px 7px}
+  .slot-cell::before{content:none;display:none}
+  .slot-actions-cell{grid-column:auto}
+  .slot-actions-cell .slot-actions{grid-template-columns:1fr}
+}

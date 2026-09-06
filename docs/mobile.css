@@ -63,3 +63,15 @@
 }
 
 @media (max-width:800px){body[data-theme] .brand{background:var(--nav-start)}}
+
+/* Keep compact screens usable when a data table is wider than the viewport. */
+@media (max-width:800px){
+  .table-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border:1px solid var(--line);background:white;border-radius:10px}
+  .table-wrap table{display:table;min-width:750px;width:100%}
+  .table-wrap thead{display:table-header-group}
+  .table-wrap tbody{display:table-row-group}
+  .table-wrap tbody tr{display:table-row;background:white;border:0;border-radius:0;margin:0;overflow:visible;box-shadow:none}
+  .table-wrap tbody td{display:table-cell;border-bottom:1px solid var(--line);padding:10px 12px;overflow-wrap:anywhere}
+  .table-wrap tbody td::before{content:none;display:none}
+  .table-wrap tbody td .actions{display:flex;width:auto;gap:7px}
+}
