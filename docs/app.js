@@ -360,7 +360,7 @@ function slotCard(sl,s,admin){
   const pendingApproval=filled&&sl.status==='RESERVED',computed=filled?patientAgeFromIc(sl.patient_ic,s.ot_date):'—',age=sl.age??computed;
   const postponed=sl.postpone_count?`<span class="badge patient-postpone">🔁 Postponed ×${esc(sl.postpone_count)}</span>`:'';
   let actions='';
-  if(filled){actions=`${admin&&pendingApproval?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}<button class="mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin&&sl.type==='MAIN'?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
+  if(filled){actions=`${admin&&pendingApproval?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}<button class="postpone-slot mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin&&sl.type==='MAIN'?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
   else{
     if(pick)actions+=`<button class="primary mini" onclick="assignSlot('${sl.id}')">Assign OT Slot</button>`;
     else if(directRequestAllowed(sl,s))actions+=`<button class="primary mini request-slot" onclick="requestSlot('${sl.id}')">＋ Request OT Slot</button>`;
