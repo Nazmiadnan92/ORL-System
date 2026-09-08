@@ -12,17 +12,46 @@ function status(v){return `<span class="badge ${esc(v)}">${esc(v)}</span>`}
 function admissionDate(ot,holidays=[]){let d=new Date(ot+'T12:00:00');d.setDate(d.getDate()-2);const blocked=new Set(holidays.map(x=>x.holiday_date));while([5,6].includes(d.getDay())||blocked.has(d.toISOString().slice(0,10)))d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)}
 function go(page){currentPage=page;$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));$('#pageTitle').textContent=$(`#nav [data-page="${page}"]`)?.textContent.replace(/^[^A-Za-z]+/,'')||'';document.body.classList.remove('menu-open');({dashboard,schedule,submit,requests,account,management,postponed,deletions,holidays,users,audit,settings,database}[page]||dashboard)()}
 async function dashboard(){const c=$('#content');c.innerHTML=head('Welcome, '+esc(user.display_name),'ORL operating theatre overview.')+'<div class="card empty">Loading dashboard…</div>';try{const d=await rpc('orl_get_dashboard',{p_session_token:token});c.innerHTML=head('Welcome, '+esc(user.display_name),'ORL operating theatre overview.')+`<div class="cards"><div class="card stat"><b>${d.draft}</b><span>Draft</span></div><div class="card stat"><b>${d.confirmed}</b><span>Confirmed / Reserved</span></div><div class="card stat"><b>${d.scheduled}</b><span>Scheduled</span></div><div class="card stat"><b>${d.upcoming_ot}</b><span>Upcoming OT Days</span></div></div><section class="block"><h2>Quick Actions</h2><div class="card actions"><button class="primary" onclick="go('submit')">Submit New Request</button><button class="secondary" onclick="go('schedule')">View OT Schedule</button></div></section>`}catch(e){c.innerHTML+=`<div class="card empty">${esc(e.message)}</div>`}}
+function malaysiaToday(){
+  const values=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+  return {year:+values.year,month:+values.month,day:+values.day,iso:`${values.year}-${values.month}-${values.day}`};
+}
+function savedScheduleView(){try{const value=JSON.parse(sessionStorage.getItem('orl_schedule_view')||'null');return value&&Number.isInteger(value.year)&&Number.isInteger(value.month)?value:null}catch{return null}}
+function rememberScheduleView(year,month){window._scheduleYM={year,month};sessionStorage.setItem('orl_schedule_view',JSON.stringify({year,month}))}
+function scheduleYearBoxes(selectedYear){const current=malaysiaToday().year;return Array.from({length:5},(_,index)=>current+index).map(year=>`<button type="button" class="year-box ${year===selectedYear?'active':''}" onclick="selectScheduleYear(${year})">${year}</button>`).join('')}
+function selectScheduleYear(year){return schedule(year,window._scheduleYM?.month||malaysiaToday().month)}
+function showCurrentScheduleMonth(){const current=malaysiaToday();return schedule(current.year,current.month)}
 async function schedule(year,month){
-  const now=new Date(),y=year||now.getFullYear(),m=month||1,c=$('#content');
-  c.innerHTML=head('OT Schedule')+`<div class="toolbar card"><label>Year<select id="sy" onchange="schedule(+this.value,1)">${[2026,2027,2028,2029,2030,2031].map(x=>`<option ${x===y?'selected':''}>${x}</option>`).join('')}</select></label><div class="schedule-info">OT Days: <b>Sunday & Wednesday</b> &nbsp;|&nbsp; Main Slots: <b>${y===2026?10:5}</b> &nbsp;|&nbsp; Special Slots: <b>2</b></div></div><div id="monthTabs" class="month-tabs"></div><div id="specialDays"></div><div id="scheduleList" class="schedule old-style"><div class="card empty">Loading…</div></div>`;
+  const current=malaysiaToday(),saved=savedScheduleView(),y=Number(year)||saved?.year||current.year,m=Number(month)||saved?.month||current.month,c=$('#content');
+  rememberScheduleView(y,m);
+  c.innerHTML=head('OT Schedule')+`<div class="schedule-navigation card"><div class="year-navigation"><span class="schedule-label">Year</span><div class="year-boxes">${scheduleYearBoxes(y)}</div></div><div class="schedule-shortcuts"><button class="secondary" onclick="showCurrentScheduleMonth()">Today / Current Month</button><button id="nearestAvailableBtn" class="primary" onclick="findNearestAvailableSlot(this)">Nearest Available Slot</button></div><div class="schedule-info">OT Days: <b>Sunday & Wednesday</b> &nbsp;|&nbsp; Main Slots: <b>${y===2026?10:5}</b> &nbsp;|&nbsp; Special Slots: <b>2</b></div></div><div id="monthTabs" class="month-tabs"></div><div id="specialDays"></div><div id="scheduleList" class="schedule old-style"><div class="card empty">Loading…</div></div>`;
   $$('#content .admin').forEach(x=>x.hidden=user.role==='STAFF');
   try{
     const [rows,hs,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
-    window._schedule=rows;window._scheduleYM={year:y,month:m};window._holidays=hs;
+    window._schedule=rows;rememberScheduleView(y,m);window._holidays=hs;
     $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}<small>${x.available} available</small></button>`).join('');
     $('#specialDays').innerHTML=specials.length?`<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${specials.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${x.date}</small></div><button class="secondary mini">Show Date →</button></div>`).join('')}</section>`:'';
     $('#scheduleList').innerHTML=rows.map(s=>scheduleCard(s,hs)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
   }catch(e){$('#scheduleList').innerHTML=`<div class="card empty">${esc(e.message)}<br>Workflow package 009 must be installed first.</div>`}
+}
+async function findNearestAvailableSlot(button){
+  const current=malaysiaToday(),originalText=button?.textContent||'Nearest Available Slot';
+  if(button){button.disabled=true;button.textContent='Searching…'}
+  try{
+    for(let year=current.year;year<current.year+5;year++){
+      const counts=await rpc('orl_get_year_month_counts',{p_session_token:token,p_year:year}),firstMonth=year===current.year?current.month:1;
+      for(let month=firstMonth;month<=12;month++){
+        if(!Number(counts.find(item=>item.month===month)?.available||0))continue;
+        const rows=await rpc('orl_get_schedule',{p_session_token:token,p_year:year,p_month:month});
+        const found=rows.find(item=>item.ot_date>=current.iso&&item.status==='ACTIVE'&&item.slots.some(slot=>slot.status==='AVAILABLE'&&(user.role!=='STAFF'||slot.type==='MAIN')));
+        if(!found)continue;
+        await schedule(year,month);
+        setTimeout(()=>{const card=document.getElementById('d-'+found.ot_date);if(!card)return;card.scrollIntoView({behavior:'smooth',block:'center'});card.classList.add('date-highlight');const slot=card.querySelector('.collapsed-slot.available');if(slot)slot.classList.add('nearest-slot-highlight')},100);
+        toast(`Nearest available slot: ${formatSystemDate(found.ot_date)}.`);return;
+      }
+    }
+    toast('No available OT slot was found within the next five years.');
+  }catch(error){toast(error.message)}finally{if(button){button.disabled=false;button.textContent=originalText}}
 }
 function canPickSlot(sl,s){return !!pendingRequest&&s.status==='ACTIVE'&&sl.status==='AVAILABLE'&&(user.role!=='STAFF'||sl.type!=='SPECIAL')}
 function patientAgeFromIc(ic,otDate){const n=String(ic||'').replace(/\D/g,'');if(n.length<6)return '—';const yy=+n.slice(0,2),mm=+n.slice(2,4),dd=+n.slice(4,6),at=new Date(otDate+'T12:00:00'),years=[1900+yy,2000+yy].filter(y=>y<=at.getFullYear());let best=null;for(const y of years){const d=new Date(y,mm-1,dd);if(d.getFullYear()===y&&d.getMonth()===mm-1&&d.getDate()===dd&&d<=at&&at.getFullYear()-y<=120)best=d}if(!best)return '—';let age=at.getFullYear()-best.getFullYear();if(at.getMonth()<best.getMonth()||(at.getMonth()===best.getMonth()&&at.getDate()<best.getDate()))age--;return age}
