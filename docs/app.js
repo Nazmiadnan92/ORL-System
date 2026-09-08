@@ -345,12 +345,22 @@ function toggleSlotPreview(event,element){
   if(opening){element.classList.add('preview-open');element.setAttribute('aria-expanded','true')}
 }
 document.addEventListener('click',event=>{if(!event.target.closest('.collapsed-slot.has-preview'))$$('.collapsed-slot.preview-open').forEach(item=>{item.classList.remove('preview-open');item.setAttribute('aria-expanded','false')})});
+async function approveSlotRequest(requestId){
+  if(!['ADMIN','WEBMASTER'].includes(user.role)){toast('Admin or Webmaster access required.');return}
+  if(!confirm('Approve this Staff OT request?'))return;
+  try{
+    await rpc('orl_review_request',{p_session_token:token,p_request_id:requestId,p_action:'APPROVE',p_note:'Approved from OT Schedule'});
+    toast('Request approved and slot confirmed.');
+    await reloadSchedule();
+    refreshNotifications();
+  }catch(error){toast(error.message)}
+}
 function slotCard(sl,s,admin){
   const filled=!!sl.patient_name,label=(sl.type==='SPECIAL'?'★ Special Slot ':'Main Slot ')+sl.number,pick=canPickSlot(sl,s),cancelled=sl.request_status==='CANCELLED';
   const pendingApproval=filled&&sl.status==='RESERVED',computed=filled?patientAgeFromIc(sl.patient_ic,s.ot_date):'—',age=sl.age??computed;
   const postponed=sl.postpone_count?`<span class="badge patient-postpone">🔁 Postponed ×${esc(sl.postpone_count)}</span>`:'';
   let actions='';
-  if(filled){actions=`<button class="mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin&&sl.type==='MAIN'?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
+  if(filled){actions=`${admin&&pendingApproval?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}<button class="mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin&&sl.type==='MAIN'?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
   else{
     if(pick)actions+=`<button class="primary mini" onclick="assignSlot('${sl.id}')">Assign OT Slot</button>`;
     else if(directRequestAllowed(sl,s))actions+=`<button class="primary mini request-slot" onclick="requestSlot('${sl.id}')">＋ Request OT Slot</button>`;
