@@ -276,3 +276,126 @@ function submit(){
     }catch(error){$('#formMsg').textContent=error.message;btn.disabled=false}
   };
 }
+
+// Interactive OT Schedule (package 025).
+function requestFormMarkup(buttonText='Confirm and Choose Slot',extraClass='card'){
+  return `<form id="requestForm" class="${extraClass}"><div class="grid"><div class="field"><label>Patient IC / Passport (optional)<input name="patient_ic" autocomplete="off"></label></div><div class="field"><label>Age<input name="age" type="number" min="0" max="130" required></label><small class="age-help">Auto-calculated for a valid Malaysian IC; otherwise enter manually.</small></div>${field('MRN','mrn')}${field('Patient Name','patient_name')}${field('Surgery','surgery')}${field('Diagnosis','diagnosis')}${field('Doctor','doctor')}${field('Specialist','specialist')}<div class="field"><label>Sub-specialty<select name="sub_specialty" required><option>Gen ORL</option><option>Rhinology</option><option>Otology</option><option>Head & Neck</option><option>Paeds</option></select></label></div>${field('Phone','phone')}<div id="duplicateCheck" class="wide" aria-live="polite"></div><div class="field wide"><label>Remark (optional)<textarea name="remark" rows="3"></textarea></label></div></div><div class="actions"><button class="primary">${esc(buttonText)}</button><span id="formMsg"></span></div></form>`;
+}
+function bindRequestForm(form,target=null){
+  const admin=['ADMIN','WEBMASTER'].includes(user.role);
+  form.elements.doctor.value=user.display_name||'';bindAgeToIc(form);
+  form.elements.mrn.addEventListener('input',queueDuplicateCheck);form.elements.surgery.addEventListener('input',queueDuplicateCheck);
+  form.elements.mrn.addEventListener('blur',queueDuplicateCheck);form.elements.surgery.addEventListener('blur',queueDuplicateCheck);
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const button=event.submitter||form.querySelector('button[type="submit"],button:not([type])');
+    const required={age:'Age',mrn:'MRN',patient_name:'Patient Name',surgery:'Surgery',diagnosis:'Diagnosis',doctor:'Doctor',specialist:'Specialist',sub_specialty:'Sub-specialty',phone:'Phone'};
+    const initial=Object.fromEntries(new FormData(form)),missing=Object.entries(required).find(([key])=>!String(initial[key]??'').trim());
+    if(missing){$('#formMsg').textContent=`${missing[1]} is required.`;form.elements[missing[0]]?.focus();return}
+    button.disabled=true;$('#formMsg').textContent='Checking for duplicate records…';let createdId=null,confirmed=false;
+    try{
+      const duplicate=await checkDuplicateRequest(false),exact=Number(duplicate?.exact_count||0)>0;
+      if(exact){
+        const allow=form.elements.allow_duplicate,reason=form.elements.duplicate_reason;
+        if(!admin){renderDuplicateWarning(duplicate);$('#formMsg').textContent='Duplicate blocked. Open the existing request.';button.disabled=false;return}
+        if(!allow){renderDuplicateWarning(duplicate);$('#formMsg').textContent='Review the duplicate warning before continuing.';button.disabled=false;return}
+        if(!allow.checked||!reason.value.trim()){reason.disabled=false;reason.required=true;reason.focus();$('#formMsg').textContent='Confirm the override and enter a reason.';button.disabled=false;return}
+      }
+      const data=Object.fromEntries(new FormData(form));data.allow_duplicate=!!form.elements.allow_duplicate?.checked;
+      Object.keys(data).forEach(key=>{if(typeof data[key]==='string')data[key]=data[key].trim()});
+      $('#formMsg').textContent='Saving…';createdId=await rpc('orl_create_request',{p_session_token:token,p_data:data});
+      await rpc('orl_confirm_request',{p_session_token:token,p_request_id:createdId});confirmed=true;pendingRequest=createdId;
+      if(target){
+        $('#formMsg').textContent='Assigning selected slot…';
+        const result=await rpc('orl_assign_slot',{p_session_token:token,p_request_id:createdId,p_slot_id:target.slotId});
+        pendingRequest=null;closeModal();toast(result==='CONFIRMED'?'Patient assigned and confirmed.':'Slot reserved for Admin approval.');
+        await reloadSchedule({forceOpenDate:target.date});
+      }else{
+        toast(data.allow_duplicate?'Duplicate override recorded. Choose an available slot.':'Request saved. Choose an available slot.');schedule();
+      }
+    }catch(error){
+      if(target&&createdId&&confirmed){
+        closeModal();pendingRequest=createdId;toast('Request saved, but this slot is no longer available. Please choose another slot.');
+        await reloadSchedule({forceOpenDate:target.date});
+      }else{$('#formMsg').textContent=error.message;button.disabled=false}
+    }
+  };
+}
+function submit(){
+  const c=$('#content');
+  c.innerHTML=head('Submit Request','All patient details are required except Patient IC / Passport and Remark. Age is calculated automatically from a valid Malaysian IC.')+requestFormMarkup();
+  bindRequestForm($('#requestForm'));
+}
+function directRequestAllowed(sl,s){return s.status==='ACTIVE'&&sl.status==='AVAILABLE'&&(user.role!=='STAFF'||sl.type==='MAIN')}
+function requestSlot(slotId){
+  const session=(window._schedule||[]).find(item=>item.slots.some(slot=>slot.id===slotId)),slot=session?.slots.find(item=>item.id===slotId);
+  if(!session||!slot||!directRequestAllowed(slot,session)){toast('This OT slot is not available for a new request.');return}
+  const label=`${slot.type==='SPECIAL'?'★ Special':'Main'} Slot ${slot.number}`;
+  modal(`<h2>Request OT Slot</h2><div class="selected-slot-context"><span>Selected slot</span><strong>${esc(session.day_name)}, ${formatSystemDate(session.ot_date)} — ${esc(label)}</strong><small>Complete the patient details below. The selected slot will be assigned automatically.</small></div>${requestFormMarkup('Submit Request for This Slot','request-slot-form')}`);
+  bindRequestForm($('#requestForm'),{slotId,date:session.ot_date});
+}
+function slotPreview(sl,s){
+  const computed=patientAgeFromIc(sl.patient_ic,s.ot_date),age=sl.age??computed,postponed=Number(sl.postpone_count||0);
+  return `<span class="slot-preview-card" role="tooltip"><strong>${esc(sl.patient_name)}</strong><span>MRN: ${esc(sl.mrn)}</span><span>Age: ${age==='—'||age===null?'—':esc(age)+' years'}</span><span>Diagnosis: ${esc(sl.diagnosis)}</span><span>Procedure: <b>${esc(sl.surgery)}</b></span><span>Doctor: ${esc(sl.doctor)}${sl.specialist?` / ${esc(sl.specialist)}`:''}</span><span>Status: ${esc(sl.request_status||sl.status)}${postponed?` · Postponed ×${postponed}`:''}</span><span>Admission: ${formatSystemDate(admissionDate(s.ot_date,window._holidays||[]))}</span>${sl.deletion_status==='PENDING'?'<em>⚠ Cancellation pending approval</em>':''}<small>Open “View OT” for full details.</small></span>`;
+}
+function toggleSlotPreview(event,element){
+  event.stopPropagation();const opening=!element.classList.contains('preview-open');
+  $$('.collapsed-slot.preview-open').forEach(item=>{item.classList.remove('preview-open');item.setAttribute('aria-expanded','false')});
+  if(opening){element.classList.add('preview-open');element.setAttribute('aria-expanded','true')}
+}
+document.addEventListener('click',event=>{if(!event.target.closest('.collapsed-slot.has-preview'))$$('.collapsed-slot.preview-open').forEach(item=>{item.classList.remove('preview-open');item.setAttribute('aria-expanded','false')})});
+function slotCard(sl,s,admin){
+  const filled=!!sl.patient_name,label=(sl.type==='SPECIAL'?'★ Special Slot ':'Main Slot ')+sl.number,pick=canPickSlot(sl,s),cancelled=sl.request_status==='CANCELLED';
+  const staffScheduled=filled&&sl.created_by_role==='STAFF'&&sl.request_status==='SCHEDULED',computed=filled?patientAgeFromIc(sl.patient_ic,s.ot_date):'—',age=sl.age??computed;
+  const postponed=sl.postpone_count?`<span class="badge patient-postpone">🔁 Postponed ×${esc(sl.postpone_count)}</span>`:'';
+  let actions='';
+  if(filled){actions=`<button class="mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin&&sl.type==='MAIN'?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
+  else{
+    if(pick)actions+=`<button class="primary mini" onclick="assignSlot('${sl.id}')">Assign OT Slot</button>`;
+    else if(directRequestAllowed(sl,s))actions+=`<button class="primary mini request-slot" onclick="requestSlot('${sl.id}')">＋ Request OT Slot</button>`;
+    if(admin&&s.status==='ACTIVE'&&sl.status==='AVAILABLE')actions+=`<button class="close-slot mini" onclick="setSlotClosed('${sl.id}',true)">🔒 Close Slot</button>`;
+    else if(admin&&s.status==='ACTIVE'&&sl.status==='CLOSED')actions+=`<button class="mini" onclick="setSlotClosed('${sl.id}',false)">🔓 Reopen Slot</button>`;
+    else if(s.status==='HOLIDAY')actions+='<span class="muted">Holiday — unavailable</span>';
+  }
+  return `<div class="slot-detail slot-row ${cancelled?'cancelled':sl.status.toLowerCase()} ${staffScheduled?'staff-scheduled':''}"><div class="slot-cell slot-title" data-label="Slot / Status"><b>${label}</b>${status(cancelled?'CANCELLED':sl.status)}${staffScheduled?'<span class="staff-origin">Staff request</span>':''}</div><div class="slot-cell" data-label="Patient / MRN / IC / Postpone">${filled?`<b class="patient">${esc(sl.patient_name)}</b><small>MRN: ${esc(sl.mrn)}<br>IC: ${esc(sl.patient_ic)||'—'}</small>${postponed}`:'—'}</div><div class="slot-cell" data-label="Age">${age==='—'||age===null?'—':esc(age)+' years'}</div><div class="slot-cell" data-label="Phone">${filled?esc(sl.phone):'—'}</div><div class="slot-cell" data-label="Diagnosis">${filled?esc(sl.diagnosis):'—'}</div><div class="slot-cell" data-label="Surgery / Procedure">${filled?esc(sl.surgery):'—'}</div><div class="slot-cell" data-label="Doctor / Specialist">${filled?`${esc(sl.doctor)}${sl.specialist?`<br><small>${esc(sl.specialist)}</small>`:''}`:'—'}</div><div class="slot-cell" data-label="Sub-specialty / Remark">${filled?`${status(sl.sub_specialty)}${sl.remark?`<small class="slot-remark">${esc(sl.remark)}</small>`:''}`:'—'}</div><div class="slot-cell slot-actions-cell" data-label="Actions"><div class="slot-actions">${actions}</div></div></div>`;
+}
+function collapsedSlot(sl,s){
+  const label=`${sl.type==='SPECIAL'?'★':''}S${sl.number}`,filled=!!sl.patient_name,staffScheduled=filled&&sl.created_by_role==='STAFF'&&sl.request_status==='SCHEDULED';
+  const cls=`collapsed-slot ${sl.request_status==='CANCELLED'?'cancelled':sl.status.toLowerCase()} ${staffScheduled?'staff-scheduled':''}`;
+  if(filled)return `<span class="${cls} has-preview" role="button" tabindex="0" aria-expanded="false" onclick="toggleSlotPreview(event,this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">${label}${sl.deletion_status==='PENDING'?'<i>⚠</i>':''}${slotPreview(sl,s)}</span>`;
+  if(canPickSlot(sl,s))return `<button type="button" class="${cls} selectable" onclick="assignSlot('${sl.id}')" title="Assign current request to ${label}">${label}</button>`;
+  if(directRequestAllowed(sl,s))return `<button type="button" class="${cls} click-request" onclick="requestSlot('${sl.id}')" title="Available — click to request">${label}<small>Request</small></button>`;
+  return `<span class="${cls}">${label}</span>`;
+}
+function scheduleCard(s,hs){
+  const available=s.slots.filter(x=>x.status==='AVAILABLE').length,reserved=s.slots.filter(x=>x.status==='RESERVED').length,confirmed=s.slots.filter(x=>x.status==='CONFIRMED').length,admin=user.role!=='STAFF';
+  return `<article class="session-card ${s.status.toLowerCase()}" id="d-${s.ot_date}"><div class="session-head"><div><div class="session-date">${esc(s.day_name)}, ${formatSystemDate(s.ot_date)} ${status(s.status)} ${s.special_title?`<span class="badge">🏷️ ${esc(s.special_title)}</span>`:''} ${s.holiday_name?`<em>${esc(s.holiday_name)}</em>`:''}</div><div class="admit">Admission: ${formatSystemDate(admissionDate(s.ot_date,hs))}</div><div class="session-summary"><span>${available} Available</span><span>${confirmed} Confirmed</span>${reserved?`<span>${reserved} Reserved</span>`:''}</div></div><div class="session-controls">${admin?`<button class="mini" onclick="setTitle('${s.session_id}')">🏷️ Title</button><button class="mini" onclick="generateOtList('${s.session_id}')">Print</button>${s.status==='ACTIVE'?`<button class="danger mini" onclick="setSession('${s.session_id}','CANCELLED')">Cancel OT</button>`:`<button class="mini" onclick="setSession('${s.session_id}','ACTIVE')">Activate (Override)</button>`}`:''}<button class="session-toggle" onclick="toggleOT('${s.ot_date}',this)">View OT ▾</button></div></div><div class="collapsed-slots">${s.slots.map(sl=>collapsedSlot(sl,s)).join('')}</div><div class="slot-grid"><div class="slot-list-head"><span>Slot / Status</span><span>Patient / MRN / IC</span><span>Age</span><span>Phone</span><span>Diagnosis</span><span>Surgery / Procedure</span><span>Doctor / Specialist</span><span>Sub-specialty / Remark</span><span>Actions</span></div>${s.slots.map(sl=>slotCard(sl,s,admin)).join('')}</div></article>`;
+}
+function captureScheduleState(){
+  const open=$$('.session-card.open').map(card=>card.id.replace(/^d-/,'')),horizontal={};
+  $$('.session-card .slot-grid').forEach(grid=>{const date=grid.closest('.session-card')?.id.replace(/^d-/,'');if(date)horizontal[date]=grid.scrollLeft});
+  return {open,horizontal,scrollTop:document.scrollingElement?.scrollTop||window.scrollY||0};
+}
+function restoreScheduleState(state,forceOpenDate=''){
+  const dates=new Set([...(state.open||[]),...(forceOpenDate?[forceOpenDate]:[])]);
+  dates.forEach(date=>{const card=document.getElementById('d-'+date);if(!card)return;card.classList.add('open');const button=card.querySelector('.session-toggle');if(button)button.textContent='Hide OT ▴';const grid=card.querySelector('.slot-grid');if(grid)grid.scrollLeft=state.horizontal?.[date]||0});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>window.scrollTo(0,state.scrollTop||0)));
+}
+async function reloadSchedule(options={}){
+  const y=window._scheduleYM?.year||new Date().getFullYear(),m=window._scheduleYM?.month||1,list=$('#scheduleList');
+  if(!list)return schedule(y,m);
+  const viewState=captureScheduleState();list.classList.add('schedule-updating');
+  try{
+    const [rows,holidays,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
+    window._schedule=rows;window._holidays=holidays;
+    $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}<small>${x.available} available</small></button>`).join('');
+    $('#specialDays').innerHTML=specials.length?`<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${specials.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${formatSystemDate(x.date)}</small></div><button class="secondary mini">Show Date →</button></div>`).join('')}</section>`:'';
+    list.innerHTML=rows.map(session=>scheduleCard(session,holidays)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
+    restoreScheduleState(viewState,options.forceOpenDate||'');
+  }catch(error){toast(error.message)}finally{list.classList.remove('schedule-updating')}
+}
+function openExistingRequest(date){
+  const mrn=$('#requestForm')?.elements.mrn?.value.trim()||'';if(!$('#modal').hidden)closeModal();
+  if(date){jumpToRequest(date);return}
+  go('dashboard');setTimeout(()=>{const input=$('#patientMrn');if(input){input.value=mrn;findPatient({preventDefault(){}})}},200);
+}
