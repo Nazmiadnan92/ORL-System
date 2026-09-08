@@ -58,3 +58,4 @@ button[onclick^="reassignSlot"]{font-size:0}button[onclick^="reassignSlot"]::bef
 
 /* Patient text normalization preview (package 026). */
 input[name="patient_name"]{text-transform:capitalize}input[name="mrn"],input[name="diagnosis"],input[name="surgery"]{text-transform:uppercase}
+.request-form-v2 .request-full-row{grid-column:1/-1!important}
