@@ -4,14 +4,13 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest prepared migration: `029_special_slot_reassignment.sql`
-- Latest migration currently applied to production: `028_slot_swap_unique_constraint_repair.sql`
+- Latest migration applied to production: `029_special_slot_reassignment.sql`
 - Next migration number: `030`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `028` again on the active database. Apply migration `029` once, then place future database changes in a new migration beginning with `030`.
+Do **not** run migrations `001` to `029` again on the active database. New database changes must be placed in a new migration beginning with `030` and tested separately before being applied to production.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
