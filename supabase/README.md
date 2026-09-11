@@ -4,14 +4,13 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest prepared migration: `027_smart_patient_search.sql`
-- Latest migration currently applied to production must be verified before running a newer file.
+- Latest migration applied to production: `027_smart_patient_search.sql`
 - Next migration number: `028`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `026` again on the active database. New database changes must be placed in a new migration beginning with `027` and tested separately before being applied to production.
+Do **not** run migrations `001` to `027` again on the active database. New database changes must be placed in a new migration beginning with `028` and tested separately before being applied to production.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
