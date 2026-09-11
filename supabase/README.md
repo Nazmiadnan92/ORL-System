@@ -4,8 +4,9 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest applied migration: `026_restore_patient_age.sql`
-- Next migration number: `027`
+- Latest prepared migration: `027_smart_patient_search.sql`
+- Latest migration currently applied to production must be verified before running a newer file.
+- Next migration number: `028`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
@@ -62,6 +63,7 @@ values
 | 024 | `024_deletion_approval_repair.sql` | Deletion approval and slot compaction repair |
 | 025 | `025_interactive_ot_schedule.sql` | Interactive schedule request origin |
 | 026 | `026_restore_patient_age.sql` | Restore patient age from portable backups |
+| 027 | `027_smart_patient_search.sql` | Secure search by MRN, IC/Passport or patient name |
 
 ## Backup safety
 
