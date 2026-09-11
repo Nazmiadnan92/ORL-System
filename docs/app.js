@@ -406,10 +406,52 @@ async function approveSlotRequest(requestId){
     refreshNotifications();
   }catch(error){toast(error.message)}
 }
+let draggedMainSlot=null;
+function clearSlotDragState(){
+  $$('.slot-row.drag-source,.slot-row.drag-eligible,.slot-row.slot-drop-active').forEach(row=>row.classList.remove('drag-source','drag-eligible','slot-drop-active'));
+  draggedMainSlot=null;
+}
+function startMainSlotDrag(event,sessionId,slotId){
+  if(!['ADMIN','WEBMASTER'].includes(user.role)){event.preventDefault();return}
+  const session=(window._schedule||[]).find(item=>item.session_id===sessionId),slot=session?.slots.find(item=>item.id===slotId);
+  if(!session||!slot||slot.type!=='MAIN'||!slot.request_id||slot.request_status==='CANCELLED'||session.status!=='ACTIVE'){event.preventDefault();return}
+  draggedMainSlot={sessionId,slotId};
+  event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',slotId);
+  requestAnimationFrame(()=>{
+    const source=document.querySelector(`.slot-row[data-slot-id="${slotId}"]`);source?.classList.add('drag-source');
+    $$('.slot-row[data-slot-id]').forEach(row=>{if(row.dataset.sessionId===sessionId&&row.dataset.slotType==='MAIN'&&row.dataset.slotId!==slotId&&row.dataset.slotStatus!=='CLOSED')row.classList.add('drag-eligible')});
+  });
+}
+function dragMainSlotOver(event){
+  const row=event.currentTarget,drag=draggedMainSlot;
+  if(!drag||row.dataset.sessionId!==drag.sessionId||row.dataset.slotType!=='MAIN'||row.dataset.slotId===drag.slotId||row.dataset.slotStatus==='CLOSED')return;
+  event.preventDefault();event.dataTransfer.dropEffect='move';
+  $$('.slot-row.slot-drop-active').forEach(item=>{if(item!==row)item.classList.remove('slot-drop-active')});row.classList.add('slot-drop-active');
+}
+function dragMainSlotLeave(event){if(!event.currentTarget.contains(event.relatedTarget))event.currentTarget.classList.remove('slot-drop-active')}
+async function dropMainSlot(event){
+  event.preventDefault();
+  const row=event.currentTarget,drag=draggedMainSlot,targetId=row.dataset.slotId,session=(window._schedule||[]).find(item=>item.session_id===drag?.sessionId);
+  const source=session?.slots.find(item=>item.id===drag?.slotId),target=session?.slots.find(item=>item.id===targetId);
+  const valid=drag&&source&&target&&target.type==='MAIN'&&target.id!==source.id&&target.status!=='CLOSED';
+  clearSlotDragState();
+  if(!valid)return;
+  const sourceLabel=`Main Slot ${source.number}`,targetLabel=`Main Slot ${target.number}`;
+  const question=target.request_id?`Swap ${sourceLabel} with ${targetLabel}?`:`Move ${patientNameCase(source.patient_name)} from ${sourceLabel} to ${targetLabel}?`;
+  if(!confirm(question))return;
+  try{
+    await rpc('orl_swap_slots',{p_session_token:token,p_from:source.id,p_to:target.id});
+    toast(target.request_id?'Both patients swapped successfully.':'Patient moved to the available slot.');
+    await reloadSchedule({forceOpenDate:session.ot_date});
+  }catch(error){toast(error.message)}
+}
 function slotCard(sl,s,admin){
   const filled=!!sl.patient_name,label=(sl.type==='SPECIAL'?'★ Special Slot ':'Main Slot ')+sl.number,pick=canPickSlot(sl,s),cancelled=sl.request_status==='CANCELLED';
   const pendingApproval=filled&&sl.status==='RESERVED',computed=filled?patientAgeFromIc(sl.patient_ic,s.ot_date):'—',age=sl.age??computed;
   const postponed=sl.postpone_count?`<span class="badge patient-postpone">🔁 Postponed ×${esc(sl.postpone_count)}</span>`:'';
+  const dragEnabled=admin&&filled&&!cancelled&&sl.type==='MAIN'&&s.status==='ACTIVE';
+  const dragHandle=dragEnabled?`<button type="button" class="slot-drag-handle" draggable="true" aria-label="Drag ${label} to reassign" title="Drag to another Main slot" ondragstart="startMainSlotDrag(event,'${s.session_id}','${sl.id}')" ondragend="clearSlotDragState()">⋮⋮</button>`:'';
+  const dropAttributes=admin&&sl.type==='MAIN'&&s.status==='ACTIVE'?` data-session-id="${s.session_id}" data-slot-id="${sl.id}" data-slot-type="${sl.type}" data-slot-status="${sl.status}" ondragover="dragMainSlotOver(event)" ondragleave="dragMainSlotLeave(event)" ondrop="dropMainSlot(event)"`:'';
   let actions='';
   if(filled){actions=`${admin&&pendingApproval?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}<button class="postpone-slot mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin&&sl.type==='MAIN'?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
   else{
@@ -420,7 +462,7 @@ function slotCard(sl,s,admin){
     else if(s.status==='HOLIDAY')actions+='<span class="muted">Holiday — unavailable</span>';
   }
   const statusBadge=pendingApproval?'<span class="badge pending-status">PENDING APPROVAL</span>':status(cancelled?'CANCELLED':sl.status);
-  return `<div class="slot-detail slot-row ${cancelled?'cancelled':sl.status.toLowerCase()} ${pendingApproval?'pending-approval':''}" data-request-id="${esc(sl.request_id||'')}"><div class="slot-cell slot-title" data-label="Slot / Status"><b>${label}</b>${statusBadge}</div><div class="slot-cell" data-label="Patient / MRN / IC / Postpone">${filled?`<b class="patient">${esc(patientNameCase(sl.patient_name))}</b><small>MRN: ${esc(clinicalUpper(sl.mrn))}<br>IC: ${esc(sl.patient_ic)||'—'}</small>${postponed}`:'—'}</div><div class="slot-cell" data-label="Age">${age==='—'||age===null?'—':esc(age)+' years'}</div><div class="slot-cell" data-label="Phone">${filled?esc(sl.phone):'—'}</div><div class="slot-cell" data-label="Diagnosis">${filled?esc(clinicalUpper(sl.diagnosis)):'—'}</div><div class="slot-cell" data-label="Surgery / Procedure">${filled?esc(clinicalUpper(sl.surgery)):'—'}</div><div class="slot-cell" data-label="Doctor / Specialist">${filled?`${esc(sl.doctor)}${sl.specialist?`<br><small>${esc(sl.specialist)}</small>`:''}`:'—'}</div><div class="slot-cell" data-label="Sub-specialty / Remark">${filled?`${status(sl.sub_specialty)}${sl.remark?`<small class="slot-remark">${esc(sl.remark)}</small>`:''}`:'—'}</div><div class="slot-cell slot-actions-cell" data-label="Actions"><div class="slot-actions">${actions}</div></div></div>`;
+  return `<div class="slot-detail slot-row ${cancelled?'cancelled':sl.status.toLowerCase()} ${pendingApproval?'pending-approval':''}" data-request-id="${esc(sl.request_id||'')}"${dropAttributes}><div class="slot-cell slot-title" data-label="Slot / Status"><b>${label}</b>${statusBadge}</div><div class="slot-cell" data-label="Patient / MRN / IC / Postpone">${filled?`<div class="patient-drag-line">${dragHandle}<b class="patient">${esc(patientNameCase(sl.patient_name))}</b></div><small>MRN: ${esc(clinicalUpper(sl.mrn))}<br>IC: ${esc(sl.patient_ic)||'—'}</small>${postponed}`:'—'}</div><div class="slot-cell" data-label="Age">${age==='—'||age===null?'—':esc(age)+' years'}</div><div class="slot-cell" data-label="Phone">${filled?esc(sl.phone):'—'}</div><div class="slot-cell" data-label="Diagnosis">${filled?esc(clinicalUpper(sl.diagnosis)):'—'}</div><div class="slot-cell" data-label="Surgery / Procedure">${filled?esc(clinicalUpper(sl.surgery)):'—'}</div><div class="slot-cell" data-label="Doctor / Specialist">${filled?`${esc(sl.doctor)}${sl.specialist?`<br><small>${esc(sl.specialist)}</small>`:''}`:'—'}</div><div class="slot-cell" data-label="Sub-specialty / Remark">${filled?`${status(sl.sub_specialty)}${sl.remark?`<small class="slot-remark">${esc(sl.remark)}</small>`:''}`:'—'}</div><div class="slot-cell slot-actions-cell" data-label="Actions"><div class="slot-actions">${actions}</div></div></div>`;
 }
 function collapsedSlot(sl,s){
   const label=`${sl.type==='SPECIAL'?'★':''}S${sl.number}`,filled=!!sl.patient_name,pendingApproval=filled&&sl.status==='RESERVED';
