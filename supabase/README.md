@@ -1,0 +1,78 @@
+# ORL OT Management System — Database Migrations
+
+This directory contains the PostgreSQL migrations used by the ORL OT Management System.
+
+## Current database version
+
+- Latest applied migration: `026_restore_patient_age.sql`
+- Next migration number: `027`
+- Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
+
+## Existing production database
+
+Do **not** run migrations `001` to `026` again on the active database. New database changes must be placed in a new migration beginning with `027` and tested separately before being applied to production.
+
+Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
+
+## New database installation
+
+For a completely new, empty database only:
+
+1. Run the SQL files once in exact numerical order from `001` through `026`.
+2. After migration `003`, create the first Webmaster manually in the private Supabase SQL Editor.
+3. Replace every placeholder in the example below. Never save the completed statement, username or password in GitHub.
+
+```sql
+insert into public.orl_users
+  (username, password_hash, display_name, role, is_active)
+values
+  ('CHOOSE_USERNAME', crypt('CHOOSE_A_LONG_UNIQUE_PASSWORD', gen_salt('bf', 12)),
+   'CHOOSE_DISPLAY_NAME', 'WEBMASTER', true);
+```
+
+4. Confirm that login and the main modules work using test data before any real patient data is introduced.
+
+## Migration order
+
+| No. | File | Purpose |
+| --- | --- | --- |
+| 001 | `001_orl_schema.sql` | Core tables, indexes and system settings |
+| 002 | `002_lock_down_tables.sql` | Table access restrictions and row-level security |
+| 003 | `003_custom_login.sql` | Custom login and session management |
+| 004 | `004_schedule_and_requests.sql` | Initial OT schedule, slots and request workflow |
+| 005 | `005_request_management.sql` | Staff requests and management review |
+| 006 | `006_full_management.sql` | Administration and slot management APIs |
+| 007 | `007_schedule_parity.sql` | OT schedule controls and presentation parity |
+| 008 | `008_postponed_deletion_management.sql` | Postponed and deletion management |
+| 009 | `009_request_schedule_workflow.sql` | Request scheduling and postponement workflow |
+| 010 | `010_cancel_and_patient_search.sql` | Cancellation slot release and patient search |
+| 011 | `011_ot_day_titles.sql` | Special OT day titles |
+| 012 | `012_database_management.sql` | Webmaster database management functions |
+| 013 | `013_staff_cancel_review.sql` | Review requirement for Staff cancellations |
+| 014 | `014_close_ot_slots.sql` | Close and reopen empty OT slots |
+| 015 | `015_dashboard_upgrade.sql` | Role-aware dashboard data |
+| 016 | `016_encrypted_backup_restore.sql` | Portable backup and restore |
+| 017 | `017_account_settings_and_themes.sql` | Account settings and saved themes |
+| 018 | `018_generate_malaysia_holidays.sql` | Malaysia and Kedah holiday management |
+| 019 | `019_block_holiday_slots.sql` | Holiday slot blocking and authorised override |
+| 020 | `020_year_based_ot_capacity.sql` | Year-based Main OT slot capacity |
+| 021 | `021_schedule_list_and_cancellation.sql` | Detailed schedule and cancellation records |
+| 022 | `022_request_age_and_staff_edit_permissions.sql` | Patient age and role-aware editing |
+| 023 | `023_duplicate_request_protection.sql` | Duplicate active-request protection |
+| 024 | `024_deletion_approval_repair.sql` | Deletion approval and slot compaction repair |
+| 025 | `025_interactive_ot_schedule.sql` | Interactive schedule request origin |
+| 026 | `026_restore_patient_age.sql` | Restore patient age from portable backups |
+
+## Backup safety
+
+The `.orlbackup` export contains operational information including patient requests, OT sessions, slots, holidays, settings and audit records. It also contains user identity mappings, but not user password hashes. Restore uses the accounts already present in the destination system.
+
+- Store backup files privately in at least two secure locations.
+- Keep the backup password separately from the backup file.
+- Never commit an `.orlbackup` file to GitHub.
+- Test restoration only in a separate test database first.
+- Migration `026` must be present for stored patient age to be restored.
+
+## Repository security
+
+This repository may be public. SQL files must never contain real patient information, production credentials, API service keys or completed backup files.
