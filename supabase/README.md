@@ -4,13 +4,14 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest migration applied to production: `027_smart_patient_search.sql`
-- Next migration number: `028`
+- Latest prepared migration: `028_slot_swap_unique_constraint_repair.sql`
+- Latest migration currently applied to production: `027_smart_patient_search.sql`
+- Next migration number: `029`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `027` again on the active database. New database changes must be placed in a new migration beginning with `028` and tested separately before being applied to production.
+Do **not** run migrations `001` to `027` again on the active database. Apply migration `028` once, then place future database changes in a new migration beginning with `029`.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
@@ -18,7 +19,7 @@ Editing or documenting files in this GitHub directory does not change the active
 
 For a completely new, empty database only:
 
-1. Run the SQL files once in exact numerical order from `001` through `026`.
+1. Run the SQL files once in exact numerical order from `001` through `028`.
 2. After migration `003`, create the first Webmaster manually in the private Supabase SQL Editor.
 3. Replace every placeholder in the example below. Never save the completed statement, username or password in GitHub.
 
@@ -63,6 +64,7 @@ values
 | 025 | `025_interactive_ot_schedule.sql` | Interactive schedule request origin |
 | 026 | `026_restore_patient_age.sql` | Restore patient age from portable backups |
 | 027 | `027_smart_patient_search.sql` | Secure search by MRN, IC/Passport or patient name |
+| 028 | `028_slot_swap_unique_constraint_repair.sql` | Safe reassignment between occupied or available Main OT slots |
 
 ## Backup safety
 
