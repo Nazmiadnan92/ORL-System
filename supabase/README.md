@@ -4,14 +4,14 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest migration applied to production: `031_postpone_staff_field_guard.sql`
-- Phase 2 installation confirmed by the operator after the guarded installer reported SUCCESS. Production Postpone workflow smoke testing is still pending. Phase 1 login was confirmed working by the operator.
-- Next migration number: `032`
+- Latest migration applied to production: `032_staff_cancel_clinical_guard.sql`
+- Phase 3 installation confirmed by the operator after the guarded installer reported SUCCESS. Production Postpone/Cancel workflow smoke testing is still pending. Phase 1 login was confirmed working by the operator.
+- Next migration number: `033`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `031` again on the active database. New database changes must be placed in a new migration beginning with `032` and tested separately before being applied to production.
+Do **not** run migrations `001` to `032` again on the active database. New database changes must be placed in a new migration beginning with `033` and tested separately before being applied to production.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
@@ -19,7 +19,7 @@ Editing or documenting files in this GitHub directory does not change the active
 
 For a completely new, empty database only:
 
-1. Run the SQL files once in exact numerical order from `001` through `031`.
+1. Run the SQL files once in exact numerical order from `001` through `032`.
 2. After migration `003`, create the first Webmaster manually in the private Supabase SQL Editor.
 3. Replace every placeholder in the example below. Never save the completed statement, username or password in GitHub.
 
@@ -68,6 +68,7 @@ values
 | 029 | `029_special_slot_reassignment.sql` | Admin/Webmaster reassignment between Main and Special OT slots |
 | 030 | `030_login_null_password_guard.sql` | Reject NULL/empty credentials and compare password hashes safely |
 | 031 | `031_postpone_staff_field_guard.sql` | Restrict Staff Postpone edits to surgery/diagnosis and reject NULL ownership |
+| 032 | `032_staff_cancel_clinical_guard.sql` | Prevent clinical edits via Staff cancellation; reject NULL ownership for ordinary Staff edits |
 
 ## Backup safety
 
