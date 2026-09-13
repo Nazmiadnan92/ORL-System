@@ -4,17 +4,18 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest migration applied to production: `036_checked_postpone_clear.sql`
+- Latest migration applied to production: `037_request_assignment_review_guards.sql`
 - Phase 4 installation confirmed by the operator after the guarded installer reported SUCCESS. Restore was NOT executed on production. Production Postpone/Cancel workflow smoke testing remains pending; Phase 1 login was confirmed working by the operator.
 - Phase 5 checked Reassign installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 049; live Reassign smoke testing remains pending.
 - Phase 6 migration 035 installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 050. Live Cancel/deletion approval smoke testing remains pending; no real-patient cancellation was performed for testing.
 - Phase 7 migration 036 installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache 051. Live Postpone/Clear smoke testing remains pending; no real-patient action was performed for testing.
-- Next migration number: `037`
+- Phase 8 migration 037 installation confirmed by the operator after guarded installer SUCCESS. SQL only; frontend 051 remains compatible. Live workflow smoke testing remains pending.
+- Next migration number: `038`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `036` again on the active database. New database changes must be placed in a new migration beginning with `037` and tested separately before being applied to production.
+Do **not** run migrations `001` to `037` again on the active database. New database changes must be placed in a new migration beginning with `038` and tested separately before being applied to production.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
@@ -22,7 +23,7 @@ Editing or documenting files in this GitHub directory does not change the active
 
 For a completely new, empty database only:
 
-1. Run the SQL files once in exact numerical order from `001` through `036`.
+1. Run the SQL files once in exact numerical order from `001` through `037`.
 2. After migration `003`, create the first Webmaster manually in the private Supabase SQL Editor.
 3. Replace every placeholder in the example below. Never save the completed statement, username or password in GitHub.
 
@@ -76,6 +77,7 @@ values
 | 034 | `034_checked_slot_reassignment.sql` | Reject stale Reassign selections after slot locking |
 | 035 | `035_checked_cancellation_compaction.sql` | Checked Edit/Cancel identity, locked compaction and deletion approval |
 | 036 | `036_checked_postpone_clear.sql` | Reject stale Postpone/Clear selections and retire unchecked entry points |
+| 037 | `037_request_assignment_review_guards.sql` | Pending-review and assignment integrity; null-safe Staff ownership |
 
 ## Backup safety
 
