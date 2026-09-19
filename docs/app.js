@@ -461,7 +461,7 @@ function collapsedSlot(sl,s){
   const cls=`collapsed-slot ${sl.request_status==='CANCELLED'?'cancelled':sl.status.toLowerCase()} ${pendingApproval?'pending-approval':''}`;
   if(filled)return `<span class="${cls} has-preview" role="button" tabindex="0" aria-expanded="false" onclick="toggleSlotPreview(event,this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">${label}${sl.deletion_status==='PENDING'?'<i>⚠</i>':''}${slotPreview(sl,s)}</span>`;
   if(canPickSlot(sl,s))return `<button type="button" class="${cls} selectable" onclick="assignSlot('${sl.id}')" title="Assign current request to ${label}">${label}</button>`;
-  if(directRequestAllowed(sl,s))return `<button type="button" class="${cls} click-request" onclick="requestSlot('${sl.id}')" title="Available — click to request">${label}<small>Request</small></button>`;
+  if(directRequestAllowed(sl,s))return `<button type="button" class="${cls} click-request" onclick="requestSlot('${sl.id}')" title="Available — click to request">${label}${sl.type==='SPECIAL'?'':'<small>Request</small>'}</button>`;
   return `<span class="${cls}">${label}</span>`;
 }
 function scheduleCard(s,hs){
