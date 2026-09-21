@@ -9,7 +9,7 @@ function icAgeParts(ic,at=new Date(),today=new Date()){
  if(at.getDate()<day)months--;
  const years=Math.floor(months/12);return years>=0&&years<=130?{years,months:months%12}:null;
 }
-function ageFields(readonly=false){return `<div class="field"><span class="age-label">Age</span><div class="age-pair"><label>Years<input name="age" type="number" min="0" max="130" step="1" ${readonly?'readonly':'required'}></label><label>Months<input name="age_months" type="number" min="0" max="11" step="1" placeholder="Unknown" ${readonly?'readonly':''}></label></div><small class="age-help">IC: calculated at the OT date when selected. Otherwise enter years and months (0-11). Blank months = unknown.</small></div>`}
+function ageFields(readonly=false){return `<div class="field"><div class="age-pair"><label>Age (Years)<input name="age" type="number" min="0" max="130" step="1" ${readonly?'readonly':'required'}></label><label>Age (Months)<input name="age_months" type="number" min="0" max="11" step="1" placeholder="Unknown" ${readonly?'readonly':''}></label></div><small class="age-help">IC: calculated at the OT date when selected. Otherwise enter years and months (0-11). Blank months = unknown.</small></div>`}
 function bindAgeParts(form,at){
  const ic=form.elements.patient_ic,years=form.elements.age,months=form.elements.age_months;if(!ic||!years)return;
  const sync=()=>{const value=icAgeParts(ic.value,at);for(const [input,key] of [[years,'years'],[months,'months']]){if(!input)continue;if(value){input.value=value[key];input.readOnly=true;input.dataset.auto='1'}else{if(input.dataset.auto==='1')input.value='';input.readOnly=false;input.dataset.auto='0'}}};
