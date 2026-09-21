@@ -33,7 +33,7 @@ async function schedule(year,month){
     const [rows,hs,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
     window._schedule=rows;rememberScheduleView(y,m);window._holidays=hs;
     $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}<small>${x.available} available</small></button>`).join('');
-    $('#specialDays').innerHTML=specials.length?`<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${specials.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${x.date}</small></div><button class="secondary mini">Show Date →</button></div>`).join('')}</section>`:'';
+    $('#specialDays').innerHTML=renderSpecialDays(specials);
     $('#scheduleList').innerHTML=rows.map(s=>scheduleCard(s,hs)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
   }catch(e){$('#scheduleList').innerHTML=`<div class="card empty">${esc(e.message)}<br>Workflow package 009 must be installed first.</div>`}
 }
@@ -205,6 +205,21 @@ function malaysiaIcAge(ic,at=new Date()){const raw=String(ic||'').trim();if(!/^\
 function bindAgeToIc(form,at=new Date()){bindAgeParts(form,at)}
 function submit(){const c=$('#content');c.innerHTML=head('Submit Request','All patient details are required except Patient IC / Passport and Remark. Age is calculated automatically from a valid Malaysian IC.')+`<form id="requestForm" class="card"><div class="grid"><div class="field"><label>Patient IC / Passport (optional)<input name="patient_ic" autocomplete="off"></label></div><div class="field"><label>Age<input name="age" type="number" min="0" max="130" required></label><small class="age-help">Auto-calculated for a valid Malaysian IC; otherwise enter manually.</small></div>${field('MRN','mrn')}${field('Patient Name','patient_name')}${field('Surgery','surgery')}${field('Diagnosis','diagnosis')}${field('Doctor','doctor')}${field('Specialist','specialist')}<div class="field"><label>Sub-specialty<select name="sub_specialty" required>${subspecialtyOptions().map(v=>`<option>${esc(v)}</option>`).join('')}</select></label></div>${field('Phone','phone')}<div class="field wide"><label>Remark (optional)<textarea name="remark" rows="3"></textarea></label></div></div><div class="actions"><button class="primary">Confirm and Choose Slot</button><span id="formMsg"></span></div></form>`;const form=$('#requestForm');form.elements.doctor.value=patientNameCase(user.display_name||'');bindAgeToIc(form);form.onsubmit=async e=>{e.preventDefault();const btn=e.submitter,data=Object.fromEntries(new FormData(e.target)),required={age:'Age',mrn:'MRN',patient_name:'Patient Name',surgery:'Surgery',diagnosis:'Diagnosis',doctor:'Doctor',specialist:'Specialist',sub_specialty:'Sub-specialty',phone:'Phone'},missing=Object.entries(required).find(([key])=>!String(data[key]??'').trim());if(missing){$('#formMsg').textContent=`${missing[1]} is required.`;e.target.elements[missing[0]]?.focus();return}Object.keys(data).forEach(key=>{if(typeof data[key]==='string')data[key]=data[key].trim()});btn.disabled=true;$('#formMsg').textContent='Saving…';try{const id=await rpc('orl_create_request',{p_session_token:token,p_data:data});await rpc('orl_confirm_request',{p_session_token:token,p_request_id:id});pendingRequest=id;toast('Request saved. Choose an available slot.');schedule()}catch(x){$('#formMsg').textContent=x.message;btn.disabled=false}}}
 function editSlotField(label,name,type='text',wide='',editable=true,required=true){return `<div class="field ${wide}"><label>${label}<input name="${name}" type="${type}" ${editable?'':'readonly aria-readonly="true"'} ${editable&&required?'required':''}></label></div>`}
+function specialDayAvailability(day){
+  const badge=(text,kind)=>`<span class="special-availability ${kind}">${esc(text)}</span>`;
+  if(day.status==='CANCELLED')return badge('Cancelled','unavailable');
+  if(day.status==='HOLIDAY')return badge('Holiday','unavailable');
+  if(day.status==='CLOSED')return badge('Closed','unavailable');
+  if(day.main_available==null)return badge('Availability unavailable','full');
+  return [['Main','main'],['Special','special']].map(([label,key])=>{
+    if(day[key+'_available']==null)return '';
+    const n=Number(day[key+'_available']),total=Number(day[key+'_total']),closed=Number(day[key+'_closed']);
+    return badge(label+': '+(n>0?n+' Available':total===0?'No slots':closed===total?'Closed':closed>0?'Unavailable':'Full'),n>0?'available':closed>0?'unavailable':'full');
+  }).join('');
+}
+function renderSpecialDays(specials){
+  return specials.length?`<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${specials.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${formatSystemDate(x.date)}</small></div><div class="special-directory-actions">${specialDayAvailability(x)}<button class="secondary mini">Show Date →</button></div></div>`).join('')}</section>`:'';
+}
 function subspecialtyOptions(){return ['Gen ORL','Rhinology','Otology','Head & Neck','Paeds','Sleep Surgery']}
 function editSubspecialtyField(value,editable){
   const current=String(value??''),options=subspecialtyOptions();
@@ -493,7 +508,7 @@ async function reloadSchedule(options={}){
     const [rows,holidays,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
     window._schedule=rows;window._holidays=holidays;
     $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}<small>${x.available} available</small></button>`).join('');
-    $('#specialDays').innerHTML=specials.length?`<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${specials.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${formatSystemDate(x.date)}</small></div><button class="secondary mini">Show Date →</button></div>`).join('')}</section>`:'';
+    $('#specialDays').innerHTML=renderSpecialDays(specials);
     list.innerHTML=rows.map(session=>scheduleCard(session,holidays)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
     restoreScheduleState(viewState,options.forceOpenDate||'');
   }catch(error){toast(error.message)}finally{list.classList.remove('schedule-updating')}
