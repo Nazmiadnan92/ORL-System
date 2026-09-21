@@ -32,7 +32,7 @@ async function schedule(year,month){
   try{
     const [rows,hs,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
     window._schedule=rows;rememberScheduleView(y,m);window._holidays=hs;
-    $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}${monthAvailability(x)}</button>`).join('');
+    $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.main_available==null?'':Number(x.main_available)>0?'main-open':'main-full'} ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}${monthAvailability(x)}</button>`).join('');
     $('#specialDays').innerHTML=renderSpecialDays(specials);
     $('#scheduleList').innerHTML=rows.map(s=>scheduleCard(s,hs)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
   }catch(e){$('#scheduleList').innerHTML=`<div class="card empty">${esc(e.message)}<br>Workflow package 009 must be installed first.</div>`}
@@ -516,7 +516,7 @@ async function reloadSchedule(options={}){
   try{
     const [rows,holidays,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
     window._schedule=rows;window._holidays=holidays;
-    $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}${monthAvailability(x)}</button>`).join('');
+    $('#monthTabs').innerHTML=counts.map(x=>`<button class="month-tab ${x.main_available==null?'':Number(x.main_available)>0?'main-open':'main-full'} ${x.month===m?'active':''}" onclick="schedule(${y},${x.month})">${months[x.month-1]}${monthAvailability(x)}</button>`).join('');
     $('#specialDays').innerHTML=renderSpecialDays(specials);
     list.innerHTML=rows.map(session=>scheduleCard(session,holidays)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
     restoreScheduleState(viewState,options.forceOpenDate||'');
