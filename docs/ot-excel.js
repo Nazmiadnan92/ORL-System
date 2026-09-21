@@ -21,7 +21,8 @@ async function buildOtExcel(buffer,session,patients){
  const all=(doc,tag)=>Array.from(doc.getElementsByTagNameNS(ns,tag));
  const setCell=(row,col,value)=>{const ref=col+row.getAttribute('r');let cell=all(row,'c').find(c=>c.getAttribute('r')===ref);if(!cell){cell=sheet.createElementNS(ns,'c');cell.setAttribute('r',ref);row.append(cell)}cell.replaceChildren();cell.setAttribute('t','inlineStr');const is=sheet.createElementNS(ns,'is'),t=sheet.createElementNS(ns,'t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=String(value??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');is.append(t);cell.append(is)};
  const shiftRef=(ref,delta)=>ref.replace(/(\$?[A-Z]+\$?)(\d+)/g,(_,col,n)=>col+(Number(n)>=19?Number(n)+delta:n));
- const extra=Math.max(0,patients.length-10),template=all(rows,'row').find(r=>r.getAttribute('r')==='18').cloneNode(true);
+ const extra=patients.length-10,template=all(rows,'row').find(r=>r.getAttribute('r')==='18').cloneNode(true);
+ if(extra<0)all(rows,'row').filter(r=>Number(r.getAttribute('r'))>=9+patients.length&&Number(r.getAttribute('r'))<=18).forEach(r=>r.remove());
  if(extra){
   all(rows,'row').filter(r=>Number(r.getAttribute('r'))>=19).forEach(r=>{r.setAttribute('r',Number(r.getAttribute('r'))+extra);all(r,'c').forEach(c=>c.setAttribute('r',shiftRef(c.getAttribute('r'),extra)))});
   const before=all(rows,'row').find(r=>Number(r.getAttribute('r'))===19+extra);
