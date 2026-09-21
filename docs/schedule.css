@@ -62,4 +62,5 @@ button[onclick^="reassignSlot"]{font-size:0}button[onclick^="reassignSlot"]::bef
 /* Patient text normalization preview (package 026). */
 input[name="patient_name"]{text-transform:capitalize}input[name="mrn"],input[name="diagnosis"],input[name="surgery"]{text-transform:uppercase}
 .request-form-v2 .request-full-row{grid-column:1/-1!important}
+.session-summary .main-availability{font-weight:600}.session-summary .main-availability.has-space{background:#dcfce7;color:#166534;border-color:#86efac}.session-summary .main-availability.no-space{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
 .special-directory-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.special-availability{padding:5px 9px;border-radius:14px;font-size:12px;font-weight:600}.special-availability.available{background:#dcfce7;color:#166534}.special-availability.full{background:#eef0f2;color:#475569}.special-availability.unavailable{background:#fee2e2;color:#991b1b}@media(max-width:600px){.special-directory-actions{width:100%}.special-directory-actions button{flex-basis:100%}}

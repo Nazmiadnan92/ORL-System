@@ -211,7 +211,8 @@ function monthAvailability(row){
 }
 function sessionAvailability(session){
   const count=type=>session.status==='ACTIVE'?session.slots.filter(sl=>sl.type===type&&sl.status==='AVAILABLE'&&!sl.request_id).length:0;
-  return `<span>Main: ${count('MAIN')} Available</span>`+(user.role!=='STAFF'?`<span>Special: ${count('SPECIAL')} Available</span>`:'');
+  const main=count('MAIN');
+  return `<span class="main-availability ${main>0?'has-space':'no-space'}">Main: ${main} Available</span>`+(user.role!=='STAFF'?`<span>Special: ${count('SPECIAL')} Available</span>`:'');
 }
 function specialDayAvailability(day){
   const badge=(text,kind)=>`<span class="special-availability ${kind}">${esc(text)}</span>`;
