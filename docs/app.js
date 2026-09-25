@@ -24,10 +24,34 @@ function rememberScheduleView(year,month){window._scheduleYM={year,month};sessio
 function scheduleYearBoxes(selectedYear){const current=malaysiaToday().year;return Array.from({length:5},(_,index)=>current+index).map(year=>`<button type="button" class="year-box ${year===selectedYear?'active':''}" onclick="selectScheduleYear(${year})">${year}</button>`).join('')}
 function selectScheduleYear(year){return schedule(year,window._scheduleYM?.month||malaysiaToday().month)}
 function showCurrentScheduleMonth(){const current=malaysiaToday();return schedule(current.year,current.month)}
+function adjacentOtMonth(year,month,step){
+  const date=new Date(year,month-1+step,1),y=date.getFullYear();
+  return y>=2026&&y<=2100?{year:y,month:date.getMonth()+1}:null;
+}
+function scheduleMonthFooter(y,m){
+  return `<nav class="schedule-month-footer" aria-label="OT schedule month navigation"><button type="button" class="secondary" onclick="changeOtMonth(-1)" ${adjacentOtMonth(y,m,-1)?'':'disabled'}>← Previous Month</button><strong>${months[m-1]} ${y}</strong><button type="button" class="secondary" onclick="changeOtMonth(1)" ${adjacentOtMonth(y,m,1)?'':'disabled'}>Next Month →</button></nav>`;
+}
+let otMonthChanging=false;
+async function changeOtMonth(step){
+  if(otMonthChanging||![-1,1].includes(step))return;
+  const view=window._scheduleYM;if(!view)return;
+  const next=adjacentOtMonth(view.year,view.month,step);if(!next)return;
+  otMonthChanging=true;
+  document.querySelectorAll('.schedule-month-footer button').forEach(b=>b.disabled=true);
+  try{
+    await schedule(next.year,next.month);
+    if(currentPage==='schedule')requestAnimationFrame(()=>{
+      const list=document.getElementById('scheduleList');if(!list)return;
+      const header=document.querySelector('main header')||document.querySelector('header');
+      window.scrollTo({top:Math.max(0,list.getBoundingClientRect().top+window.scrollY-(header?.getBoundingClientRect().height||64)-12),behavior:'smooth'});
+    });
+  }finally{otMonthChanging=false}
+}
 async function schedule(year,month){
   const current=malaysiaToday(),saved=savedScheduleView(),y=Number(year)||saved?.year||current.year,m=Number(month)||saved?.month||current.month,c=$('#content');
   rememberScheduleView(y,m);
   c.innerHTML=head('OT Schedule')+`<div class="schedule-navigation card"><div class="year-navigation"><span class="schedule-label">Year</span><div class="year-boxes">${scheduleYearBoxes(y)}</div></div><div class="schedule-shortcuts"><button class="secondary" onclick="showCurrentScheduleMonth()">Today / Current Month</button><button id="nearestAvailableBtn" class="primary" onclick="findNearestAvailableSlot(this)">Nearest Available Slot</button></div><div class="schedule-info">OT Days: <b>Sunday & Wednesday</b> &nbsp;|&nbsp; Main Slots: <b>${y===2026?10:5}</b> &nbsp;|&nbsp; Special Slots: <b>2</b></div></div><div id="monthTabs" class="month-tabs"></div><div id="specialDays"></div><div id="scheduleList" class="schedule old-style"><div class="card empty">Loading…</div></div>`;
+  c.insertAdjacentHTML('beforeend',scheduleMonthFooter(y,m));
   $$('#content .admin').forEach(x=>x.hidden=user.role==='STAFF');
   try{
     const [rows,hs,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
