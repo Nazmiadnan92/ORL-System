@@ -1,7 +1,7 @@
 const cfg=window.ORL_CONFIG||{},$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 let token=sessionStorage.getItem('orl_session_token')||'',user=null,pendingRequest=null,currentPage='dashboard',holidayViewYear=new Date().getFullYear();
 const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const themes=[{id:'TAUPE',name:'Warm Taupe',primary:'#815854',secondary:'#F9EBDE'},{id:'RUBY',name:'Ruby Gold',primary:'#A4193D',secondary:'#FFDFB9'},{id:'ROSE',name:'Rose Slate',primary:'#6A7BA2',secondary:'#FFDFDE'},{id:'PURPLE',name:'Purple Sage',primary:'#603F83',secondary:'#C7D3D4'},{id:'OCEAN',name:'Ocean Blue',primary:'#0063B2',secondary:'#9CC3D5'}];
+const themes=[{id:'TAUPE',name:'Warm Taupe',primary:'#815854',secondary:'#F9EBDE'},{id:'RUBY',name:'Ruby Gold',primary:'#A4193D',secondary:'#FFDFB9'},{id:'ROSE',name:'Rose Slate',primary:'#6A7BA2',secondary:'#FFDFDE'},{id:'PURPLE',name:'Emerald Ivory',primary:'#157246',secondary:'#F5EFE6'},{id:'OCEAN',name:'Ocean Blue',primary:'#0063B2',secondary:'#9CC3D5'}];
 // Escape HTML text and quoted HTML attributes. Never use this to build JavaScript.
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function rpc(name,args={}){const r=await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${name}`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.supabaseAnonKey,Authorization:`Bearer ${cfg.supabaseAnonKey}`},body:JSON.stringify(args)});let data=null;try{data=await r.json()}catch{}if(!r.ok)throw new Error(data?.message||'Unable to connect to the ORL database.');return data}
