@@ -66,7 +66,7 @@ input[name="patient_name"]{text-transform:capitalize}input[name="mrn"],input[nam
 .special-directory-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.special-availability{padding:5px 9px;border-radius:14px;font-size:12px;font-weight:600}.special-availability.available{background:#dcfce7;color:#166534}.special-availability.full{background:#eef0f2;color:#475569}.special-availability.unavailable{background:#fee2e2;color:#991b1b}@media(max-width:600px){.special-directory-actions{width:100%}.special-directory-actions button{flex-basis:100%}}
 .month-tabs .month-tab.main-open{background:#dcfce7;color:#166534;border-color:#86efac}.month-tabs .month-tab.main-full{background:#fee2e2;color:#991b1b;border-color:#fca5a5}.month-tabs .month-tab.active{border-color:var(--navy);box-shadow:inset 0 0 0 2px var(--navy)}
 .schedule-month-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:8px;background:white}.schedule-month-footer button{min-height:44px}.schedule-month-footer strong{text-align:center;color:var(--navy)}@media(max-width:600px){.schedule-month-footer{display:grid;grid-template-columns:1fr 1fr}.schedule-month-footer strong{grid-column:1/-1;grid-row:1}.schedule-month-footer button{width:100%}}
-.session-card.special-day{background:#ecfdf5;border-color:#6ee7b7;border-top-color:#047857}
+.session-card.special-day{background:#d1fae5;border-color:#34d399;border-top-color:#047857}
 .session-card.special-day .session-date{color:#065f46}
 .session-card.holiday.session-card,.session-card.cancelled.session-card{border-top-color:#b91c1c;background:#fff8f8}
 .collapsed-slot.special-slot.available{background:#fff8dc;border-color:#c99a25;color:#705000}
