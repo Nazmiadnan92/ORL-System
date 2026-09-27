@@ -88,6 +88,7 @@ values
 | 041 | `041_subspecialty_statistics.sql` | Role-scoped, filtered and paginated sub-specialty statistics |
 | 042 | `042_special_day_availability.sql` | Aggregate Main/Special availability and session status for titled OT days |
 | 043 | `043_split_month_availability.sql` | Role-scoped split Main/Special monthly availability, retaining legacy total |
+| 044 | `044_required_password_change.sql` | Optional next-login password change with server-enforced access blocking and password rules |
 
 ## Backup safety
 
