@@ -3,11 +3,12 @@
 ## Status and scope
 
 Latest checkpoint (2026-10-01 Malaysia): six production secret names are verified
-present; operator confirms key recovery and backup. Readiness is temporarily ENABLED
-at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266` for the pending Webmaster
-synthetic test. Negative live preflight passed. Disable the readiness flag after the
-test. The historical deployment notes below describe the earlier disabled checkpoint.
-Package B remains incomplete until authenticated verification and closure.
+present; operator confirms key recovery and backup. Live Webmaster synthetic crypto
+and missing/unknown/revoked-session denial passed; operator log reviewed. Readiness
+at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266` is now DISABLED again,
+independently confirmed by HTTP 503. Package B foundation/synthetic scope is complete.
+Live Staff/Admin/disabled-account checks were not performed (local regression only).
+The historical deployment notes below describe the earlier disabled checkpoint.
 
 Package A is display masking only. Several existing RPC responses still carry full
 `patient_ic` into browser memory and edit forms; masking is not an API access control
@@ -20,8 +21,8 @@ operator confirmation, not an independent production query. The `ic-readiness` E
 Function was deployed through the Dashboard on 2026-09-30 using a pinned import from
 reviewed commit `62c329b6e4bacaeba15f17a80da7536e1e46c8ac`. A body-free Dashboard POST
 returned HTTP 503 with `Readiness check disabled.`, confirming the live disabled
-handler runs. Production key/recovery provisioning and enabled Webmaster readiness
-verification remain pending. After explicit operator approval, Dashboard legacy JWT
+handler runs. Key provisioning and live verification followed as recorded above.
+After explicit operator approval, Dashboard legacy JWT
 verification was switched OFF for this function only, matching `verify_jwt=false`.
 A subsequent body-free POST without credentials returned the same disabled response.
 

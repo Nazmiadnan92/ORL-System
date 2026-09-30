@@ -6,8 +6,9 @@ Baseline: `5d92c8a` (Package A), restore tag `restore/pre-ic-encryption-package-
 
 - Operator reports encrypted key backup/recovery SUCCESS and a separately saved copy.
 - All six `ORL_IC_*` secret names are visible in Dashboard; values were not revealed.
-- Readiness is temporarily ENABLED for the pending operator Webmaster test. Disable
-  `ORL_IC_READINESS_ENABLED` after verification; do not change encryption/search keys.
+- Package B foundation/synthetic verification is COMPLETE within the limits below.
+- Readiness was disabled again after the operator test; an independent unauthenticated
+  POST returned HTTP 503 `Readiness check disabled.` Encryption/search keys unchanged.
 - A live gateway compatibility issue was found: zero-byte POST arrives as a non-null
   stream. Fixed by bounded first-chunk/EOF check (2-second timeout); nonempty bodies
   remain rejected without parsing/buffering them. No SQL or patient workflow changed.
@@ -15,9 +16,12 @@ Baseline: `5d92c8a` (Package A), restore tag `restore/pre-ic-encryption-package-
 - Local suite: 8 groups passed, 1 PostgreSQL integration group skipped on this rerun.
 - Live preflight using the operator test helper: missing session 401, unknown random
   session 403, nonempty synthetic payload 400. No user login or patient data used.
-- Authenticated live crypto, actual Webmaster probe and revoked-session test remain
-  pending. Live Staff/Admin/disabled-account tests have not been performed; local
-  synthetic regression covers these. Package B is not yet marked complete.
+- Operator test log reviewed (UTC 2026-09-30T22:46:15Z): Webmaster access 200; all five
+  synthetic crypto checks passed (round trip, randomized ciphertext, exact search,
+  tamper rejection, record-swap rejection); patient_encryption_active=false and
+  no-store header verified. Logged-out test session denied with 403.
+- Live Staff/Admin/disabled-account tests have not been performed; local synthetic
+  regression covers these. This is not an independent security certification.
 
 ## Verified locally
 
@@ -69,12 +73,14 @@ Eight distinct groups have therefore been exercised, not eight live Supabase che
 
 - Migration 018's external holiday retrieval needs Supabase's `http` extension and was
   explicitly excluded. Holiday fetching was not tested or modified in this package.
-- Actual Supabase Edge Runtime deployment and disabled response are verified as above.
-  Live crypto and role/session verification remain pending; local Node tests are not
-  a substitute for those enabled runtime checks.
+- Actual Supabase Edge Runtime crypto, Webmaster access, missing/unknown/revoked session
+  denial and disabled closure are verified as above. Other role/account-denial cases
+  have local regression evidence only, not production-account tests.
 - The operator confirmed migration 045 installer SUCCESS after its TLS correction.
-  Production database state has not been independently re-queried. Production
-  secret/recovery provisioning and enabled Webmaster readiness checks remain pending.
+  Live Webmaster readiness subsequently exercised its backend probe successfully.
+  No independent full production schema/data inventory was performed. Recovery file
+  creation, password recovery and separate-copy custody are operator-confirmed; secret
+  values were not revealed or exported by the agent for independent key comparison.
 - The successful installer requires a fresh full dump and archive readability check
   before installation; no production restore was performed. Recovery of future encrypted identities needs both ciphertext
   and separately secured keys; current portable backup does not cover the new table.
