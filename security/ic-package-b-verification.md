@@ -42,8 +42,10 @@ Eight distinct groups have therefore been exercised, not eight live Supabase che
 - Dashboard POST with empty body and no application session returned HTTP 503,
   `Readiness check disabled.` This confirms the actual live handler loads and its
   disabled guard works; it does not verify crypto, database probe or role enforcement.
-- Legacy JWT verification remains ON; Dashboard deployment did not consume local
-  `config.toml`. No gateway authentication settings were changed.
+- Dashboard deployment initially retained legacy JWT verification ON. After explicit
+  operator approval, switched it OFF for `ic-readiness` only and saved successfully.
+  A body-free POST without credentials returned HTTP 503 `Readiness check disabled.`
+  This verifies disabled behavior without the gateway JWT, not enabled role checks.
 - No production encryption keys provisioned, patient ICs encrypted or data deleted.
 
 ## Limits and next verification

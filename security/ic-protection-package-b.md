@@ -14,9 +14,9 @@ Function was deployed through the Dashboard on 2026-09-30 using a pinned import 
 reviewed commit `62c329b6e4bacaeba15f17a80da7536e1e46c8ac`. A body-free Dashboard POST
 returned HTTP 503 with `Readiness check disabled.`, confirming the live disabled
 handler runs. Production key/recovery provisioning and enabled Webmaster readiness
-verification remain pending. Dashboard legacy JWT verification is still ON; unlike
-CLI deployment, the Dashboard did not apply the repository's `verify_jwt=false`.
-Changing this gateway setting requires specific approval before proceeding.
+verification remain pending. After explicit operator approval, Dashboard legacy JWT
+verification was switched OFF for this function only, matching `verify_jwt=false`.
+A subsequent body-free POST without credentials returned the same disabled response.
 
 ## Design decisions
 
@@ -52,8 +52,8 @@ response remain necessary. B does not claim to remediate unrelated existing RPC 
 ## Sessions and roles
 
 The application uses a custom opaque UUID session, not a Supabase Auth JWT.
-`verify_jwt=false` is intended only for `ic-readiness` in repository config (the live
-Dashboard deployment currently retains JWT verification ON). This does **not** make its result
+`verify_jwt=false` applies only to `ic-readiness` in repository config and its live
+Dashboard configuration. This does **not** make its result
 public: every POST must send `x-orl-session`, and the server invokes the service-only
 `orl_ic_foundation_probe` RPC. That RPC calls the migration-044 session validator and
 checks WEBMASTER. Staff, Admin, expired/unknown sessions, disabled accounts and
