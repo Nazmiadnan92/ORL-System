@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+*.orlbackup
+*.dump
+*.partial
+*.key
+node_modules/
+.local-postgres/
+supabase/.temp/
+private-secrets/

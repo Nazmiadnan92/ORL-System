@@ -4,7 +4,8 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest migration applied to production: `043_split_month_availability.sql`
+- Latest migration reported applied to production: `044_required_password_change.sql` (operator confirmed SUCCESS; not independently re-queried for Package B).
+- Candidate `045_ic_encryption_foundation.sql`: prepared for Package B; NOT yet confirmed installed. It adds empty private storage and a backend-only Webmaster readiness check. It does not encrypt or remove existing ICs. Edge Function deployment/secrets are separate from SQL installation.
 - Phase 4 installation confirmed by the operator after the guarded installer reported SUCCESS. Restore was NOT executed on production. Production Postpone/Cancel workflow smoke testing remains pending; Phase 1 login was confirmed working by the operator.
 - Phase 5 checked Reassign installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 049; live Reassign smoke testing remains pending.
 - Phase 6 migration 035 installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 050. Live Cancel/deletion approval smoke testing remains pending; no real-patient cancellation was performed for testing.
@@ -14,12 +15,12 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 - Migrations 040 and 041 installation confirmed by the operator after guarded installer SUCCESS on 2026-09-19. Matching frontend cache 053 adds years/months, Doctor/Specialist name formatting and scoped sub-specialty statistics. Synthetic local tests passed; no production Restore or real-patient workflow action was performed for testing.
 - Migration 042 installation confirmed by the operator after guarded installer SUCCESS on 2026-09-21. Frontend cache 058 displays role-scoped Main/Special availability in the special-day directory. Synthetic local tests passed; no production patient actions were performed for testing.
 - Migration 043 installation confirmed by the operator after guarded installer SUCCESS on 2026-09-21. Frontend cache 059 separates Main/Special availability in month tabs and daily summaries; Staff sees Main only. Synthetic local database and frontend tests passed. No production patient operation was performed for testing.
-- Next migration number: `044`
+- Next migration number after the prepared 045 candidate: `046`
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `043` again on the active database. New database changes must be placed in a new migration beginning with `044` and tested separately before being applied to production.
+Do **not** run migrations `001` to `044` again on the active database. Candidate `045` must be tested and installed separately; later changes start with `046`.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
@@ -27,7 +28,7 @@ Editing or documenting files in this GitHub directory does not change the active
 
 For a completely new, empty database only:
 
-1. Run the SQL files once in exact numerical order from `001` through `043`.
+1. Run the production SQL files once in exact numerical order from `001` through `044`. Install candidate `045` only as part of the reviewed IC foundation workflow.
 2. After migration `003`, create the first Webmaster manually in the private Supabase SQL Editor.
 3. Replace every placeholder in the example below. Never save the completed statement, username or password in GitHub.
 
@@ -89,6 +90,13 @@ values
 | 042 | `042_special_day_availability.sql` | Aggregate Main/Special availability and session status for titled OT days |
 | 043 | `043_split_month_availability.sql` | Role-scoped split Main/Special monthly availability, retaining legacy total |
 | 044 | `044_required_password_change.sql` | Optional next-login password change with server-enforced access blocking and password rules |
+| 045 (candidate) | `045_ic_encryption_foundation.sql` | Empty private encrypted-identity storage and service-only Webmaster readiness RPC; no patient migration |
+
+Package B design, key recovery requirements, tests and installation sequence are in
+[`security/ic-protection-package-b.md`](../security/ic-protection-package-b.md).
+The current `.orlbackup` format does not include private encrypted-identity storage or
+Edge Function secrets. Do not populate production identity storage until Package C
+updates and tests backup/restore together with the patient workflows.
 
 ## Backup safety
 
