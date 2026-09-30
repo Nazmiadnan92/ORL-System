@@ -15,7 +15,25 @@ export function createReadinessHandler({ enabled, origins, authorize, cryptoConf
     if (!enabled) return reply(503, { error: 'Readiness check disabled.' });
     if (request.method !== 'POST') return reply(405, { error: 'Method not allowed.' });
     // This endpoint accepts no body or query (and therefore no patient identifiers).
-    if (new URL(request.url).search || request.body !== null) return reply(400, { error: 'No payload permitted.' });
+    if (new URL(request.url).search) return reply(400, { error: 'No payload permitted.' });
+    // Supabase's gateway may represent a zero-byte POST as a non-null stream.
+    // Accept end-of-stream only; never parse/buffer a caller's payload.
+    if (request.body !== null) {
+      const reader = request.body.getReader();
+      let timer;
+      try {
+        const first = await Promise.race([
+          reader.read(),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Body timeout')), 2000); }),
+        ]);
+        if (!first.done) return reply(400, { error: 'No payload permitted.' });
+      } catch { return reply(400, { error: 'No payload permitted.' }); }
+      finally {
+        clearTimeout(timer);
+        reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+    }
     const token = request.headers.get('x-orl-session') || '';
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token))
       return reply(401, { error: 'Valid Webmaster session required.' });

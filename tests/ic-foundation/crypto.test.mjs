@@ -105,6 +105,20 @@ test('HTTP rejects untrusted origins, patient payloads, query strings and invali
   assert.equal((await run(req({ method: 'OPTIONS' }))).status, 204);
 });
 
+test('gateway zero-byte POST streams accepted but any payload bytes rejected', async () => {
+  const empty = req({ body: '' });
+  assert.notEqual(empty.body, null);
+  assert.equal((await handler()(empty)).status, 200);
+  assert.equal((await handler()(req({ body: '', session: '' }))).status, 401);
+  for (const body of [' ', '{}', 'x', 'x'.repeat(65536)]) {
+    assert.equal((await handler()(req({ body }))).status, 400);
+  }
+  const stalled = new Request('https://example.invalid/ic-readiness', {
+    method: 'POST', body: new ReadableStream({ start() {} }), duplex: 'half',
+  });
+  assert.equal((await handler()(stalled)).status, 400);
+});
+
 test('Edge adapter forwards custom session only to fixed RPC; supports secret and legacy server keys', async () => {
   const oldDeno = globalThis.Deno, oldFetch = globalThis.fetch;
   const keys = config();
