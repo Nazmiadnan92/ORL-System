@@ -7,9 +7,11 @@ Package A is display masking only. Several existing RPC responses still carry fu
 or encryption. Package B prepares and tests infrastructure. Real patient encryption
 starts only in Package C. No existing request or IC is changed by migration 045.
 
-Production 044 was reported successful by the operator. Migration 045 and the Edge
-Function must be separately installed and verified; repository presence is not proof
-of deployment. See the package status table at the end of this document.
+Production migration 045 was reported successful by the operator after correcting the
+installer to use the official Supabase CA with full hostname verification. This is an
+operator confirmation, not an independent production query. Edge Function deployment,
+production key/recovery provisioning and live readiness verification remain pending.
+Repository presence is not proof of Edge Function deployment.
 
 ## Design decisions
 

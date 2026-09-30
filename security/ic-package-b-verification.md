@@ -40,10 +40,11 @@ Eight distinct groups have therefore been exercised, not eight live Supabase che
   explicitly excluded. Holiday fetching was not tested or modified in this package.
 - Actual Deno/Supabase Edge Runtime deployment is not yet verified. Node uses the same
   Web Crypto implementation interface but is not a substitute for a live runtime check.
-- Migration 045 production installation, production secret/recovery provisioning and
-  readiness response are pending. GitHub publication is not production installation.
-- The installer will create a fresh full dump and check archive readability, not perform
-  a production restore. Recovery of future encrypted identities needs both ciphertext
+- The operator confirmed migration 045 installer SUCCESS after its TLS correction.
+  Production state has not been independently re-queried. Edge Function deployment,
+  production secret/recovery provisioning and live readiness response remain pending.
+- The successful installer requires a fresh full dump and archive readability check
+  before installation; no production restore was performed. Recovery of future encrypted identities needs both ciphertext
   and separately secured keys; current portable backup does not cover the new table.
 - No patient encryption, backfill, Reveal IC or plaintext removal implemented or tested
   as a production workflow. These remain Package C tasks.
