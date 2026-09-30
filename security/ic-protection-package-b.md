@@ -9,9 +9,14 @@ starts only in Package C. No existing request or IC is changed by migration 045.
 
 Production migration 045 was reported successful by the operator after correcting the
 installer to use the official Supabase CA with full hostname verification. This is an
-operator confirmation, not an independent production query. Edge Function deployment,
-production key/recovery provisioning and live readiness verification remain pending.
-Repository presence is not proof of Edge Function deployment.
+operator confirmation, not an independent production query. The `ic-readiness` Edge
+Function was deployed through the Dashboard on 2026-09-30 using a pinned import from
+reviewed commit `62c329b6e4bacaeba15f17a80da7536e1e46c8ac`. A body-free Dashboard POST
+returned HTTP 503 with `Readiness check disabled.`, confirming the live disabled
+handler runs. Production key/recovery provisioning and enabled Webmaster readiness
+verification remain pending. Dashboard legacy JWT verification is still ON; unlike
+CLI deployment, the Dashboard did not apply the repository's `verify_jwt=false`.
+Changing this gateway setting requires specific approval before proceeding.
 
 ## Design decisions
 
@@ -47,7 +52,8 @@ response remain necessary. B does not claim to remediate unrelated existing RPC 
 ## Sessions and roles
 
 The application uses a custom opaque UUID session, not a Supabase Auth JWT.
-`verify_jwt=false` is set only for `ic-readiness`. This does **not** make its result
+`verify_jwt=false` is intended only for `ic-readiness` in repository config (the live
+Dashboard deployment currently retains JWT verification ON). This does **not** make its result
 public: every POST must send `x-orl-session`, and the server invokes the service-only
 `orl_ic_foundation_probe` RPC. That RPC calls the migration-044 session validator and
 checks WEBMASTER. Staff, Admin, expired/unknown sessions, disabled accounts and

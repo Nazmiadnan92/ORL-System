@@ -34,15 +34,28 @@ PostgreSQL integration. A subsequent adapter group passed along with the six cry
 HTTP groups; PostgreSQL integration was skipped in that standalone Node invocation.
 Eight distinct groups have therefore been exercised, not eight live Supabase checks.
 
+## Live deployment verification — 2026-09-30
+
+- Deployed `ic-readiness` through the Supabase Dashboard after specific operator approval.
+- Entry imports the exact reviewed commit `62c329b6e4bacaeba15f17a80da7536e1e46c8ac`.
+- Function details page and endpoint appeared after deployment.
+- Dashboard POST with empty body and no application session returned HTTP 503,
+  `Readiness check disabled.` This confirms the actual live handler loads and its
+  disabled guard works; it does not verify crypto, database probe or role enforcement.
+- Legacy JWT verification remains ON; Dashboard deployment did not consume local
+  `config.toml`. No gateway authentication settings were changed.
+- No production encryption keys provisioned, patient ICs encrypted or data deleted.
+
 ## Limits and next verification
 
 - Migration 018's external holiday retrieval needs Supabase's `http` extension and was
   explicitly excluded. Holiday fetching was not tested or modified in this package.
-- Actual Deno/Supabase Edge Runtime deployment is not yet verified. Node uses the same
-  Web Crypto implementation interface but is not a substitute for a live runtime check.
+- Actual Supabase Edge Runtime deployment and disabled response are verified as above.
+  Live crypto and role/session verification remain pending; local Node tests are not
+  a substitute for those enabled runtime checks.
 - The operator confirmed migration 045 installer SUCCESS after its TLS correction.
-  Production state has not been independently re-queried. Edge Function deployment,
-  production secret/recovery provisioning and live readiness response remain pending.
+  Production database state has not been independently re-queried. Production
+  secret/recovery provisioning and enabled Webmaster readiness checks remain pending.
 - The successful installer requires a fresh full dump and archive readability check
   before installation; no production restore was performed. Recovery of future encrypted identities needs both ciphertext
   and separately secured keys; current portable backup does not cover the new table.
