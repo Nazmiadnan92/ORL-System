@@ -2,6 +2,23 @@
 
 Baseline: `5d92c8a` (Package A), restore tag `restore/pre-ic-encryption-package-b-20260930`.
 
+## Current checkpoint — 2026-10-01 (Malaysia)
+
+- Operator reports encrypted key backup/recovery SUCCESS and a separately saved copy.
+- All six `ORL_IC_*` secret names are visible in Dashboard; values were not revealed.
+- Readiness is temporarily ENABLED for the pending operator Webmaster test. Disable
+  `ORL_IC_READINESS_ENABLED` after verification; do not change encryption/search keys.
+- A live gateway compatibility issue was found: zero-byte POST arrives as a non-null
+  stream. Fixed by bounded first-chunk/EOF check (2-second timeout); nonempty bodies
+  remain rejected without parsing/buffering them. No SQL or patient workflow changed.
+- Deployed pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266` through Dashboard.
+- Local suite: 8 groups passed, 1 PostgreSQL integration group skipped on this rerun.
+- Live preflight using the operator test helper: missing session 401, unknown random
+  session 403, nonempty synthetic payload 400. No user login or patient data used.
+- Authenticated live crypto, actual Webmaster probe and revoked-session test remain
+  pending. Live Staff/Admin/disabled-account tests have not been performed; local
+  synthetic regression covers these. Package B is not yet marked complete.
+
 ## Verified locally
 
 - PostgreSQL 18: fresh empty loopback cluster; no production dump or patient data used.

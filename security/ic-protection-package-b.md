@@ -2,6 +2,13 @@
 
 ## Status and scope
 
+Latest checkpoint (2026-10-01 Malaysia): six production secret names are verified
+present; operator confirms key recovery and backup. Readiness is temporarily ENABLED
+at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266` for the pending Webmaster
+synthetic test. Negative live preflight passed. Disable the readiness flag after the
+test. The historical deployment notes below describe the earlier disabled checkpoint.
+Package B remains incomplete until authenticated verification and closure.
+
 Package A is display masking only. Several existing RPC responses still carry full
 `patient_ic` into browser memory and edit forms; masking is not an API access control
 or encryption. Package B prepares and tests infrastructure. Real patient encryption
