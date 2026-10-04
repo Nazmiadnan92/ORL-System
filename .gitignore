@@ -9,3 +9,4 @@ node_modules/
 .local-postgres/
 supabase/.temp/
 private-secrets/
+.tools/

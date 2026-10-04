@@ -4,3 +4,7 @@ project_id = "orl-system"
 # ORL uses opaque custom sessions, NOT Supabase Auth JWTs. The handler performs
 # mandatory server-side session validation via the service-only probe RPC.
 verify_jwt = false
+
+[functions.ic-requests]
+# ORL custom sessions are validated inside the gateway and again in SQL.
+verify_jwt = false

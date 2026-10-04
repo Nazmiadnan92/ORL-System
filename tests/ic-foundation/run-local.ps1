@@ -1,3 +1,4 @@
+param([switch]$IncludeC1)
 $ErrorActionPreference='Stop'
 $orlBin='C:\Program Files\PostgreSQL\18\bin'
 $orlRepo=(Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -15,10 +16,22 @@ try {
   & "$orlBin\initdb.exe" -D $orlData -U orl_test_owner --auth=trust --encoding=UTF8 --locale=C | Out-Null
   if ($LASTEXITCODE -ne 0 -or !(Test-Path (Join-Path $orlData 'PG_VERSION'))) { throw 'Synthetic database initialization failed.' }
   # Separate handles keep the background server from holding the PowerShell pipe open.
-  $orlLaunchArgs=@('-D',('"'+$orlData+'"'),'-l',('"'+(Join-Path $orlRun 'server.log')+'"'),'-o',('"-h 127.0.0.1 -p '+$orlPort+'"'),'-w','start')
+  # Deterministic disposable fixtures: explicit writer/maintenance-lock tests cover
+  # NOWAIT refusal. Background autovacuum otherwise races mass restore test churn.
+  # This switch applies ONLY to this newly initialized localhost test cluster.
+  $orlLaunchArgs=@('-D',('"'+$orlData+'"'),'-l',('"'+(Join-Path $orlRun 'server.log')+'"'),'-o',('"-h 127.0.0.1 -p '+$orlPort+' -c autovacuum=off"'),'-w','start')
   $orlLauncher=Start-Process -FilePath "$orlBin\pg_ctl.exe" -ArgumentList $orlLaunchArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $orlRun 'launch.out') -RedirectStandardError (Join-Path $orlRun 'launch.err')
   if (!$orlLauncher.WaitForExit(30000)) { throw 'Synthetic launcher timed out; inspect this run before retrying.' }
-  if ($orlLauncher.ExitCode -ne 0) { throw 'Synthetic server start failed.' }
+  # Windows PowerShell can retain a stale/null ExitCode after WaitForExit when
+  # stdout/stderr are redirected. Refresh before deciding that startup failed.
+  $orlLauncher.Refresh()
+  if ($orlLauncher.ExitCode -ne 0) {
+    # Some Windows PostgreSQL builds report a non-zero launcher exit after
+    # printing "server started". Trust only an exact data-directory status
+    # check; this cannot accidentally bless another server on the same port.
+    & "$orlBin\pg_ctl.exe" -D $orlData status | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Synthetic server start failed.' }
+  }
   $orlStarted=$true
   & "$orlBin\psql.exe" @orlConn -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA extensions; CREATE EXTENSION pgcrypto WITH SCHEMA extensions;' | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Synthetic role setup failed.' }
@@ -36,8 +49,32 @@ try {
   Write-Output 'PASS: second installation refused without overwriting foundation.'
   $env:ORL_IC_TEST_PSQL=Join-Path $orlBin 'psql.exe'
   $env:ORL_IC_TEST_PORT=$orlPort
+  & (Join-Path $PSScriptRoot '..\ic-write\preflight-recovery.test.ps1') -Phase Pre
+  if ($LASTEXITCODE -ne 0) { throw 'C1 pre-046 release preflight regression failed.' }
   & node --test (Join-Path $PSScriptRoot 'crypto.test.mjs')
   if ($LASTEXITCODE -ne 0) { throw 'Crypto/HTTP/PostgreSQL integration tests failed.' }
+  if ($IncludeC1) {
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\create.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 synthetic creation tests failed.' }
+    & (Join-Path $PSScriptRoot '..\ic-write\preflight-recovery.test.ps1') -Phase Post
+    if ($LASTEXITCODE -ne 0) { throw 'C1 post-046 release preflight regression failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\browser.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 browser/portable-backup compatibility tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\app-wiring.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 staged application wiring tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\backup-conversion-ui.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 backup conversion UI/file tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\creation-recovery.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 pending creation recovery tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\legacy-backup.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 local legacy backup conversion tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\gateway.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 gateway tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\runtime.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 desktop/mobile/Edge runtime policy tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\release.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C1 guarded release artifact tests failed.' }
+  }
 } finally {
   $env:PGOPTIONS=$orlOldOptions
   $env:ORL_IC_TEST_PSQL=$orlOldPsql
