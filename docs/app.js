@@ -677,8 +677,9 @@ function formatPatientIc(value){
 function maskPatientIc(value){
   const raw=String(value||'').trim();
   if(!raw)return '—';
+  if(/^\d{6}-\*{2}-\*{4}$/.test(raw)||/^\*{6}-\*{2}-\d{4}$/.test(raw))return raw;
   const digits=raw.replace(/\D/g,'');
-  if(digits.length===12)return `******-**-${digits.slice(-4)}`;
+  if(digits.length===12)return `${digits.slice(0,6)}-**-****`;
   const compact=raw.replace(/\s+/g,'');
   if(compact.length<=4)return '*'.repeat(Math.max(4,compact.length));
   return `${'*'.repeat(Math.max(4,Math.min(8,compact.length-4)))}${compact.slice(-4)}`;

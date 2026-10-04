@@ -2,11 +2,12 @@
 
 ## Checkpoint, 2026-10-01 Malaysia
 
-**C1 production activation is in progress.** Migration 046 and the exact-project Edge
-gateway are installed, post-install/recovery checks passed, and public plus shared-rate
-smoke passed without patient workflows. Cache 073/config 025 is staged for the final
-website publish and live read-only verification; it is not complete until those gates pass.
-No Restore or test patient mutation was used.
+**C1 production activation is complete.** Migration 046, the exact-project Edge gateway
+and cache 073/config 025 were installed and published. Recovery, public-denial,
+shared-rate and operator live-login/read-only checks passed without Restore or a test
+patient mutation. Migration 047 was subsequently installed from a fresh verified private
+backup to preserve the first six Malaysian IC digits and mask the final six; cache 074
+contains the matching browser and Excel display policy.
 
 Local source restore point: `restore/pre-ic-package-c1-20261001` at `2560f05`.
 This is a Git source checkpoint, NOT a database backup or key backup.
@@ -348,7 +349,7 @@ has been performed, and C1 remains default-OFF.
 | --- | --- | --- |
 | A | Complete: backup and display masking only | Sol : Medium |
 | B | Complete within documented foundation/synthetic scope | Astra : High |
-| C1 | In progress: initial main-page wiring staged default-OFF; release blockers and controlled deployment still required | Astra : High |
+| C1 | Complete: guarded 046/Edge/frontend activation plus display-only migration 047 | Astra : High |
 | C2 | Pending: reconcile/encrypt legacy ICs in controlled batches | Astra : High |
 | C3 | Pending: explicitly authorized Reveal + audit policy | Sol : Medium |
 | C4 | Pending: full workflow, recovery-key and restore verification | Astra : High |
@@ -356,12 +357,9 @@ has been performed, and C1 remains default-OFF.
 | C6 | Pending: remove plaintext only after reconciliation and approval | Astra : High |
 | C7 | Pending: final audit and new backup | Astra : High |
 
-Next implementation (updated 2026-10-02 after mutation-fencing checkpoint): remaining
-legacy workflow fencing, final upload/time/rate-limit policy and database gating of
-obsolete public write/export entrypoints. Finish browser/runtime validation before promoting migration
-046, prepare guarded installation with a fresh private dump, stage the disabled Edge
-Function and compatible frontend, and activate after controlled verification. Production
-version must not be updated merely because candidate files exist locally or in Git.
+Next implementation after C1: C2 controlled reconciliation and encryption of legacy ICs.
+Its four steps must remain separately gated; C1 completion does not authorize bulk
+backfill or plaintext removal.
 
 ## Restore-generation and local legacy-conversion checkpoint
 

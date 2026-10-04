@@ -53,7 +53,7 @@ export async function runRepairExposureTests({t,sql,parallelSql,literal,users,pa
       sql(`set role anon;select public.orl_get_postponed(${literal(users.WEBMASTER)})`),
       sql(`set role anon;select public.orl_get_audit(${literal(users.WEBMASTER)},'SYNTHETIC')`),
       sql(`select orl_private.c1_mask_json(${literal(JSON.stringify({patient_ic:raw,remark:`${raw} ${my}`}))}::jsonb,null)`)
-    ]){assert.equal(text.includes(raw),false);assert.equal(text.includes(my),false);assert.match(text,/5678|SECRET/)}
+    ]){assert.equal(text.includes(raw),false);assert.equal(text.includes(my),false);assert.match(text,/010203-\*\*-\*{4}|SECRET/)}
   });
   await t.test('all public SECURITY DEFINER functions fix search_path and all C1 functions remain explicitly classified',()=>{
     assert.equal(sql(`select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace

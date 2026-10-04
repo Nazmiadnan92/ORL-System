@@ -84,6 +84,15 @@ test('form binding never pre-fills raw IC; checkbox controls replacement and Sta
 
 // Exercise the EXISTING deployed file decoder, not a freshly invented file format.
 const app = readFileSync(new URL('../../docs/app.js', import.meta.url), 'utf8');
+const maskSource=app.slice(app.indexOf('function maskPatientIc('),app.indexOf('function formatOtDocumentDate('));
+const maskContext=vm.createContext({});
+vm.runInContext(maskSource+'\nglobalThis.maskPatientIc=maskPatientIc;',maskContext);
+test('browser and exported OT lists preserve first six Malaysian IC digits and hide the final six',()=>{
+  assert.equal(maskContext.maskPatientIc('010203-04-5678'),'010203-**-****');
+  assert.equal(maskContext.maskPatientIc('010203045678'),'010203-**-****');
+  assert.equal(maskContext.maskPatientIc('010203-**-****'),'010203-**-****');
+  assert.equal(maskContext.maskPatientIc('C1-PASSPORT-SECRET'),'********CRET');
+});
 const lines = app.split('\n').filter(line => /^async function (backupKey|streamBytes|decodeBackup)\(/.test(line));
 assert.equal(lines.length, 3, 'Backup decoder layout changed; review the extraction.');
 const context = vm.createContext({ crypto, TextEncoder, TextDecoder, Uint8Array, Blob, Response, CompressionStream, DecompressionStream });
@@ -132,13 +141,13 @@ test('wrong passphrase/tampering fail; old files still open but protected restor
   assert.throws(() => previewBackupVersion({ ...base(), version: 3 }));
 });
 
-test('release frontend protection is explicitly enabled only through cache 025 configuration', () => {
+test('release frontend protection remains enabled while cache 074 publishes the corrected IC mask', () => {
   const html = readFileSync(new URL('../../docs/index.html', import.meta.url), 'utf8');
   const config = readFileSync(new URL('../../docs/config.js', import.meta.url), 'utf8');
   assert.equal(html.includes('c1-create'), false);
   assert.equal(/icProtectionEnabled\s*:\s*true/.test(config), true);
   assert.match(html, /config\.js\?v=025/);
-  assert.match(html, /app\.js\?v=073/);
+  assert.match(html, /app\.js\?v=074/);
   assert.match(app, /ic-client\.mjs\?v=073/);
   assert.ok(app.includes('cfg.icProtectionEnabled===true'));
   assert.ok(app.includes("!protectedIcEnabled()?await legacyRpc(name,args):await (await protectedIcClient()).route(name,args)"));

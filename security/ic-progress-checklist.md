@@ -1,10 +1,10 @@
 # IC protection — remaining-work checklist
 
-This is the user-agreed NEW checklist for remaining work, not a restart of earlier
-C1 implementation. Baseline was 114 passing local tests. Production remains unchanged;
-completed implementation steps below mean locally implemented and tested, not deployed.
+This is the user-agreed checklist for the C1 work. C1 is now installed, published and
+operator-verified in production. No production Restore or synthetic patient mutation was
+used for activation.
 
-## C1: 14/15 steps complete locally
+## C1: 15/15 steps complete
 
 | Step | Scope | Status |
 | --- | --- | --- |
@@ -22,10 +22,8 @@ completed implementation steps below mean locally implemented and tested, not de
 | 12 | Fresh-target/full-dump recovery and missing/old reference handling | Complete locally: actual synthetic pg_dump/restore to a fresh target, pre-open gate, generation rotation/session invalidation and conservative reference resolution tested; 196-test runner passed, 2026-10-04 |
 | 13 | Desktop/mobile/Edge runtime and size/time/rate verification | Complete locally: installed Edge desktop/mobile viewports, browser APIs/module, 8 MiB/2,000-record backup policy, 2 s body/25 s RPC deadlines and mandatory 30/min shared-rate contract tested; 204-test runner passed, 2026-10-04 |
 | 14 | Guarded migration/deployment/cache/backup/rollback preparation | Complete locally: generated/hash-pinned 046, real shared PostgreSQL rate store and Edge entrypoint, cache 073/config 025 default-OFF, guarded private-backup installer, preflight and recovery runbook; actual disposable 046 install/reinstall refusal plus 207-test runner passed, 2026-10-04 |
-| 15 | Separately approved controlled installation and activation | In progress: preflight/key recovery, disabled Edge, private dump, atomic 046 and post-install gates passed. Exact-project Edge ENABLE and independent sanitized 401/403 public smoke passed. Operator reports hidden-local-token rate smoke passed 30 safe HTTP 400 validations then HTTP 429 with Retry-After 60, without a patient workflow. Cache 073/config 025 is staged ON; completion still requires exact-repository publish and live login/read-only role verification |
+| 15 | Separately approved controlled installation and activation | Complete, 2026-10-05: preflight/key recovery, verified private dump, atomic 046, recovery postcheck, exact-project Edge enable, sanitized public smoke and 30/minute rate smoke passed. Cache 073/config 025 was published at `9a70640`; the operator confirmed normal live login/read-only use. Migration 047 was then installed from a fresh verified backup to display Malaysian IC as first six digits plus `**-****`; cache 074 publishes the matching defensive browser/Excel mask. |
 
-Do not advance steps merely because a related earlier test exists. Keep each step
-scoped to the user's requested number; finish verification before marking it complete.
 Remaining later packages: C2 legacy IC encryption (4 steps), C3 Reveal (3), C4 end-to-end
 verification (4), C5 observation (2), C6 plaintext cutover/removal (4), C7 final audit and
 backup (3). Full technical evidence and limits: `ic-protection-package-c.md`.

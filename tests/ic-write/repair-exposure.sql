@@ -64,7 +64,7 @@ begin
    result:=replace(result,raw,orl_private.c1_mask_ic(raw));
  end loop;
  return regexp_replace(result,'(^|[^0-9])([0-9]{6})-?([0-9]{2})-?([0-9]{4})([^0-9]|$)',
-   E'\\1******-**-\\4\\5','g');
+   E'\\1\\2-**-****\\5','g');
 end $$;
 revoke all on function orl_private.c1_redact_text(text) from public,anon,authenticated,service_role;
 

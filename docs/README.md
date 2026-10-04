@@ -8,7 +8,7 @@ The system provides a structured workflow for managing OT requests, patient sche
 
 - Interactive OT schedule with year and month navigation
 - Direct OT slot requests
-- Patient search using MRN
+- Patient search using MRN, IC / Passport, or patient name
 - Automatic patient age calculation from Malaysian IC
 - Staff request review and approval
 - OT slot confirmation, editing, postponement, and reassignment
@@ -77,6 +77,10 @@ The Webmaster has full administrative access, including:
 ## Security
 
 The application uses role-based permissions and protected database functions for sensitive operations.
+
+Malaysian IC values are displayed as the first six digits followed by `**-****`; the
+final six digits remain hidden in schedules, searches, histories and generated OT lists.
+This display mask does not replace database encryption or access control.
 
 Webmaster-level actions require additional password confirmation. Backup files are compressed and encrypted before download using a user-provided passphrase.
 

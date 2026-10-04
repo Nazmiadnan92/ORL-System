@@ -56,6 +56,8 @@ try {
   if ($IncludeC1) {
     & node --test (Join-Path $PSScriptRoot '..\ic-write\create.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'C1 synthetic creation tests failed.' }
+    & (Join-Path $PSScriptRoot '..\ic-write\migration-047.test.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Migration 047 display-mask regression failed.' }
     & (Join-Path $PSScriptRoot '..\ic-write\preflight-recovery.test.ps1') -Phase Post
     if ($LASTEXITCODE -ne 0) { throw 'C1 post-046 release preflight regression failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\browser.test.mjs')

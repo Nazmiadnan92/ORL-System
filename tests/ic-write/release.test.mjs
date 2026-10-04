@@ -61,3 +61,16 @@ test('generated 046 is hash-pinned and contains no localhost gate or secret mate
   assert.match(guard,/execute 'select orl_private\.c1_recovery_ready\(\)'/);
   assert.doesNotMatch(guard,/if has_046 and not orl_private\.c1_recovery_ready/);
 });
+
+test('migration 047 is hash-pinned, display-only and uses the reviewed certificate installer',()=>{
+  const sql=readFileSync(new URL('../../supabase/047_mask_ic_last_six.sql',import.meta.url),'utf8').replaceAll('\r\n','\n');
+  assert.equal(createHash('sha256').update(sql).digest('hex').toUpperCase(),'9FAD29E497EE94D5A38CEB2CC8F85EF6CC765D662134A9058F14D94840E2F0D4');
+  assert.match(sql,/010203-\*\*-\*{4}/);
+  assert.doesNotMatch(sql,/update\s+public\.orl_requests|delete\s+from|request_identity\s+set|patient_ic\s*=\s*'\d/i);
+  const installer=readFileSync(new URL('../../security/release/install-047.ps1',import.meta.url),'utf8');
+  assert.match(installer,/Test-OrlReviewedCa/);
+  assert.match(installer,/Security\.Cryptography\.SHA256/);
+  assert.doesNotMatch(installer,/Get-FileHash/);
+  assert.match(installer,/ORL-before-047/);
+  assert.match(installer,/9FAD29E497EE94D5A38CEB2CC8F85EF6CC765D662134A9058F14D94840E2F0D4/);
+});

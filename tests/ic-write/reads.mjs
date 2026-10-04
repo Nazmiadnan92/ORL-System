@@ -21,7 +21,7 @@ export async function runReadTests({ t, sql, literal, users, payload, commit }) 
       const text = sql(`set role anon; select jsonb_agg(to_jsonb(s)) from public.orl_get_schedule(${literal(users[role])},2097,2) s`);
       noRaw(text);
       const row = JSON.parse(text).flatMap(x => x.slots).find(x => x.request_id === id);
-      assert.equal(row.patient_ic, '******-**-5678'); assert.equal(row.patient_ic_masked, true);
+      assert.equal(row.patient_ic, '010203-**-****'); assert.equal(row.patient_ic_masked, true);
       assert.equal(row.age, expected.years); assert.equal(row.age_months, expected.months);
       assert.equal(row._ic_edit_version,sql(`select to_jsonb(updated_at)#>>'{}' from public.orl_requests where id=${literal(id)}`));
     }
@@ -47,7 +47,7 @@ export async function runReadTests({ t, sql, literal, users, payload, commit }) 
       values(${literal(extra)},'C1-DUP-READ',${literal(raw)},'READ-SECOND','Synthetic','TEST','TEST','Test','Test','Gen ORL','0','CANCELLED')`);
     noRaw(query('orl_db_cancelled'));
     const duplicates = query('orl_db_duplicates'); noRaw(duplicates);
-    assert.ok(JSON.parse(duplicates).some(x => x.match_type === 'PATIENT IC' && x.match_value === '******-**-5678'));
+    assert.ok(JSON.parse(duplicates).some(x => x.match_type === 'PATIENT IC' && x.match_value === '010203-**-****'));
   });
   await t.test('raw private cores are inaccessible; revoked/unknown sessions still fail', () => {
     const fns = JSON.parse(sql("select jsonb_agg(oid::text) from pg_proc where pronamespace='orl_private'::regnamespace and proname like 'c1_read_%'"));
