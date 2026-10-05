@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createIcGateway} from '../../supabase/functions/_shared/c1/gateway.mjs';
+import {createBackendRpc} from '../../supabase/functions/_shared/c1/backend.mjs';
 import {verifyOtExport} from '../../supabase/functions/_shared/c1/ot-export.mjs';
 import {createIdentityCrypto,toBase64} from '../../supabase/functions/_shared/ic-crypto.mjs';
 import {createIcRpcRouter,createIcTransport} from '../../docs/ic-client.mjs';
@@ -72,4 +73,42 @@ test('browser route uses only protected endpoint and rejects changed session/exp
  expire=true;await assert.rejects(route('orl_ic_ot_export',args));expire=false;
  wrong=true;await assert.rejects(route('orl_ic_ot_export',args));wrong=false;
  change=true;await assert.rejects(route('orl_ic_ot_export',args));
+});
+
+test('production RPC adapter connects OT export view and audit commit without relaxing its allowlist',async()=>{
+ const calls=[];let role='ADMIN',auditFails=false;
+ const rpc=createBackendRpc({baseUrl:'https://synthetic.supabase.co',secretKey:'sb_secret_SYNTHETIC_ONLY',
+  fetchImpl:async(url,init)=>{
+   const name=new URL(url).pathname.split('/').pop(),args=JSON.parse(init.body);calls.push(name);
+   assert.equal(init.headers.apikey,'sb_secret_SYNTHETIC_ONLY');
+   assert.equal(init.cache,'no-store');assert.equal(init.redirect,'error');
+   if(name==='orl_ic_c1_authorize')return Response.json({role});
+   if(name==='orl_ic_c1_rate_limit')return Response.json(true);
+   assert.equal(args.p_session_token,token);assert.equal(args.p_password,'SYNTHETIC');
+   assert.equal(args.p_ot_session_id,sessionId);assert.equal(args.p_generation,generation);
+   if(name==='orl_ic_ot_export_view')return Response.json(await view());
+   if(name==='orl_ic_ot_export_commit'){
+    assert.equal(args.p_lease_id,lease);
+    if(auditFails)return Response.json({message:'PRIVATE '+raw},{status:500});
+    return Response.json({lease_id:lease,generation,session_id:sessionId,patient_count:2,expires_at:expiry()});
+   }
+   assert.fail('Unexpected backend endpoint');
+  }});
+ const gateway=createIcGateway({enabled:true,origins:[],rpc,cryptoConfig:()=>config,
+  rateLimit:({token})=>rpc('orl_ic_c1_rate_limit',{p_session_token:token})});
+ const request=()=>new Request('https://synthetic.supabase.co/functions/v1/ic-requests',{method:'POST',
+  headers:{'x-orl-session':token,'content-type':'application/json'},
+  body:JSON.stringify({operation:'OT_EXPORT',password:'SYNTHETIC',session_id:sessionId,generation})});
+ for(const allowed of ['ADMIN','WEBMASTER']){
+  role=allowed;calls.length=0;const response=await gateway(request());
+  assert.equal(response.status,200,'the deployed adapter must permit both export RPCs');
+  assert.equal((await response.json()).result.patients[0].patient_ic,raw);
+  assert.deepEqual(calls,['orl_ic_c1_authorize','orl_ic_c1_rate_limit','orl_ic_ot_export_view','orl_ic_ot_export_commit']);
+ }
+ role='STAFF';calls.length=0;assert.equal((await gateway(request())).status,403);
+ assert.deepEqual(calls,['orl_ic_c1_authorize','orl_ic_c1_rate_limit']);
+ role='ADMIN';auditFails=true;const denied=await gateway(request());assert.equal(denied.status,403);
+ assert.ok(!(await denied.text()).includes(raw));
+ const before=calls.length;await assert.rejects(rpc('unreviewed_rpc',{}),/Unsupported backend operation/);
+ assert.equal(calls.length,before);
 });

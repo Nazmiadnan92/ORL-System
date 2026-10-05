@@ -137,7 +137,7 @@ Production migration, Edge deployment and website publication verified on
 2026-10-06 (Asia/Kuala_Lumpur). Release commit: 69dfaa3; restore tag:
 restore/pre-ot-export-20261006. Migration 053 report confirms all nine checks,
 zero plaintext rows and zero identity mismatches; its private backup hash matches.
-All 12 deployed Edge source files match the reviewed code (ic-requests version 8).
+All 12 deployed Edge source files match the reviewed code (ic-requests version 9).
 GitHub Pages run 37358412709 completed successfully; seven published assets,
 including the unchanged workbook template, match the local release.
 Existing Generate/Print stays Admin/Webmaster only and requires the current website
@@ -170,3 +170,13 @@ audited export implementation with no script errors. No real-patient export or
 clinical mutation was performed during verification. Operator acceptance:
 generate an authorized OT list and confirm its OT_LIST_FULL_IC_GENERATED entry
 in Audit Log; keep the full-IC workbook private.
+
+OT export hotfix (2026-10-06): the production backend RPC adapter was missing
+the two export RPC allowlist entries, causing authenticated exports to fail
+before reaching the database. Added only orl_ic_ot_export_view and
+orl_ic_ot_export_commit; no migration, credential, patient or frontend changes.
+A regression test reproduces the old HTTP 403 through the actual production
+adapter and verifies Admin/Webmaster success, Staff denial, audit-failure
+non-disclosure and rejection of unreviewed RPCs after the fix. All 71 focused
+tests pass. Edge version 9 was deployed and its 12 source files verified.
+Real-patient download and Audit Log acceptance still require operator confirmation.
