@@ -5,7 +5,11 @@ $orlConnection="host=aws-0-ap-southeast-1.pooler.supabase.com port=5432 dbname=p
 $orlFolder=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ORL-Private-Backups';$stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
 $file=Join-Path $orlFolder "ORL-before-050-$stamp.dump";$partial="$file.partial";$expected='C75B9454674A4822922657FACE270C960541A59F062F51E4791649D6AC708877'
 . (Join-Path $PSScriptRoot 'Test-OrlReviewedCa.ps1')
-function Get-OrlHash([string]$Path){(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash}
+function Get-OrlHash([string]$Path){
+  $orlStream=[IO.File]::OpenRead($Path);$orlSha=[Security.Cryptography.SHA256]::Create()
+  try{[BitConverter]::ToString($orlSha.ComputeHash($orlStream)).Replace('-','')}
+  finally{$orlSha.Dispose();$orlStream.Dispose()}
+}
 try{
   if((Get-OrlHash $orlSql)-ne$expected){throw 'STOP: reviewed migration 050 changed.'}
   Test-OrlReviewedCa -Path $orlCa -ExpectedDerSha256 '807025AD50D4ED219D2C9C7D299C004F824EB00CF7F65AFEF607D07B72E6CAFA'
