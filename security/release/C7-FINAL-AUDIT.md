@@ -1,4 +1,4 @@
-# C7 final audit — prepared, operator verification pending
+# C7 final audit — database and recovery passed; website observation pending
 
 Scope: IC access controls, post-C6 workflows and recovery of the application schemas.
 This is not independent IT approval, a penetration test, or proof against all breaches.
@@ -72,5 +72,16 @@ production hash guard.
 - Structured IC protection is not a guarantee that arbitrary free-text attachments
   or remarks never contain manually entered identifying information.
 
-Current status: code and local tests prepared; 052 production installation, fresh
-post-052 recovery rehearsal and live observation must succeed before marking C7 done.
+Confirmed 2026-10-06: operator installed 052 successfully. The private C7 sanitized
+report completed at 2026-10-05T17:41:18Z was independently read: 332 requests,
+331 identities, all 331 cryptographically verified after isolated restore;
+zero structured plaintext IC rows and zero identity mismatches. Live and restored
+security checks passed, restored sessions were invalidated, and temporary local
+restore files were removed. No production Restore was performed.
+
+Remaining gate: live website observation. The site still served cache 076 while
+main contained 077; GitHub Actions had no build for commit 2f3f105. A Pages build
+was explicitly requested using the existing authorized GitHub credential and
+returned queued. The configured source remains main /docs; no hosting settings
+were changed. Use Semak-C7-Website.cmd after publication, NOT the full C7 installer
+or recovery runner. C7 is not closed until the authenticated live observation passes.
