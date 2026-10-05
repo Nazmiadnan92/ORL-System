@@ -86,6 +86,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C1 guarded release artifact tests failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\c2-release.test.mjs') (Join-Path $PSScriptRoot '..\ic-write\c3-release.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'C2/C3 guarded release artifact tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c4-release.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C4 guarded verification artifact tests failed.' }
+    & (Join-Path $orlRepo 'security\release\verify-c4.ps1') -SelfTest
+    if ($LASTEXITCODE -ne 0) { throw 'C4 synthetic recovery/identity verification failed.' }
   }
 } finally {
   $env:PGOPTIONS=$orlOldOptions

@@ -361,14 +361,19 @@ has been performed, and C1 remains default-OFF.
 | C1 | Complete: guarded 046/Edge/frontend activation plus display-only migration 047 | Astra : High |
 | C2 | Complete 2026-10-05: 331 legacy identities encrypted and fully reconciled; post-C2 dump verified | GPT-5.6 Sol : High |
 | C3 | Complete 2026-10-05: password/purpose-bound one-record Reveal, value-free audit and 60-second UI expiry | GPT-5.6 Sol : Medium |
-| C4 | Pending: full workflow, recovery-key and restore verification | GPT-5.6 Sol : High |
+| C4 | Complete 2026-10-05: workflow regression and actual private-backup local recovery; all 331 encrypted identities verified using recovered keys | GPT-5.6 Sol : High |
 | C5 | Pending: observation and minor display fixes | GPT-5.6 Sol : Medium |
 | C6 | Pending: remove plaintext only after reconciliation and approval | GPT-5.6 Sol : High |
 | C7 | Pending: final audit and new backup | GPT-5.6 Sol : High |
 
-Next implementation after completed C3: C4 full workflow, recovery-key and Restore
-verification. C3 does not authorize plaintext removal; Package C6 remains a separate
-approval gate.
+Next after completed C4: C5 live observation. C4's sanitized report records 332
+requests, 331 verified identities and 1,733 audit rows. The private dump checksum was
+independently matched after operator SUCCESS. Application schemas were restored with
+ACLs into a disposable local cluster, the recovery fence was initially closed, local
+owner finalization rotated generation/invalidated sessions, and temporary data was
+removed before SUCCESS. Ownership was mapped to the local owner; this does not certify
+Supabase infrastructure, Storage or production Restore. Plaintext removal still requires
+the separate Package C6 approval gate. See `release/C4-VERIFICATION-RUNBOOK.md`.
 
 ## Restore-generation and local legacy-conversion checkpoint
 

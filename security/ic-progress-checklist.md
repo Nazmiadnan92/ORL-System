@@ -41,7 +41,20 @@ used for activation.
 | 2 | Cryptographic Reveal gateway and audit | Complete: exact envelope plus keyed search hash are verified before release; commit is one-time, generation/version fenced and writes an audit row without the IC value; C3 Edge deployment reported SUCCESS |
 | 3 | Safe responsive UI and verification | Complete: cache 075 supplies explicit Reveal, auto-hide on timeout/tab hiding, no browser persistence and no Staff button; 221 local tests passed. No real patient Reveal was performed merely for testing |
 
-Remaining later packages: C4 end-to-end verification (4), C5 observation (2), C6
+## C4: 4/4 verification steps complete
+
+| Step | Scope | Status |
+| --- | --- | --- |
+| 1 | Protected workflow regression | Complete locally: 224 tests plus synthetic C4 crypto passed; targeted checks rerun after restore-runner fixes |
+| 2 | Recovery-key usability | Complete, 2026-10-05: operator entered the recovery passphrase privately; recovered keys verified all 331 restored identities and search hashes |
+| 3 | Isolated actual-backup restore | Complete: public/orl_private restored with ACLs; fresh target started closed; local owner finalization rotated generation and invalidated restored sessions |
+| 4 | Reconciliation and fresh private backup | Complete: 332 requests, 331 protected identities and 1 blank identity; sanitized report and matching dump SHA-256 independently checked; temporary restore removed |
+
+This verifies the application schemas locally, with ownership mapped to the local
+owner. It is not a full Supabase infrastructure/Storage recovery or production Restore
+test. Live observation remains C5. No production writes or plaintext removal occurred.
+
+Remaining later packages: C5 observation (2), C6
 plaintext cutover/removal (4), and C7 final audit/backup (3).
 Per the current model-cost preference: use GPT-5.6 Sol Medium for C5 and GPT-5.6
 Sol High for C4/C6/C7. Full technical evidence and limits: `ic-protection-package-c.md`.
