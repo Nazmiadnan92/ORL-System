@@ -1,16 +1,21 @@
 # Package C — controlled IC encryption rollout
 
-## C6 repair checkpoint, 2026-10-06 Malaysia
+## C6 completed checkpoint, 2026-10-06 Malaysia
 
 Migration 050, the C6 Edge function and cache 076 are deployed. The operator's
 fresh reconciliation verified all 331 identities, but C6 cutover was rejected by
 PostgreSQL (SQLSTATE 21000: `UPDATE requires a WHERE clause`). Authenticated status
 afterwards confirms 332 requests, 331 protected and still-plaintext identities,
-one blank, zero identity mismatches, and no cutover receipt. No completion is claimed.
-Migration 051 is a local, pending definition-only repair of four unscoped free-text
-updates. It preserves authorization, crypto receipts, atomicity, permissions and
-database safe-update protections; its installer requires a fresh private dump.
-After installation, fresh C6 verification/cutover and the post-C6 backup remain.
+one blank, zero identity mismatches, and no cutover receipt at that time.
+Migration 051 then repaired four unscoped free-text updates while preserving
+authorization, crypto receipts, atomicity, permissions and database protections.
+Full local regression and targeted 051 cutover/field-redaction tests passed. The
+operator confirmed backup-first 051 installation, fresh verification/cutover SUCCESS,
+then the separate post-C6 check and full backup SUCCESS. This last check requires a
+cutover receipt, zero operational plaintext and zero identity mismatches. The completed
+private backup was independently found and its archive listing passed; it has not yet
+been restore-tested. Historical dumps remain private and can contain plaintext.
+C6 is complete; C7 final audit remains pending.
 
 ## Checkpoint, 2026-10-01 Malaysia
 
@@ -375,10 +380,10 @@ has been performed, and C1 remains default-OFF.
 | C3 | Complete 2026-10-05: password/purpose-bound one-record Reveal, value-free audit and 60-second UI expiry | GPT-5.6 Sol : Medium |
 | C4 | Complete 2026-10-05: workflow regression and actual private-backup local recovery; all 331 encrypted identities verified using recovered keys | GPT-5.6 Sol : High |
 | C5 | Complete 2026-10-05: public release/Edge denials and authenticated role-scoped reads observed; 156 masked fields, zero Reveal/mutations, logout confirmed | GPT-5.6 Sol : Medium |
-| C6 | Pending: remove plaintext only after reconciliation and approval | GPT-5.6 Sol : High |
+| C6 | Complete 2026-10-06: repair 051, fresh verification/cutover, zero-plaintext postcheck and private backup | GPT-5.6 Sol : High |
 | C7 | Pending: final audit and new backup | GPT-5.6 Sol : High |
 
-Next after completed C5: separately approve C6 plaintext cutover/removal. C4's sanitized report records 332
+Next after completed C6: C7 final audit. C4's historical sanitized report records 332
 requests, 331 verified identities and 1,733 audit rows. The private dump checksum was
 independently matched after operator SUCCESS. Application schemas were restored with
 ACLs into a disposable local cluster, the recovery fence was initially closed, local

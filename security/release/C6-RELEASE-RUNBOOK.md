@@ -1,5 +1,12 @@
 # Package C6 — plaintext cutover
 
+COMPLETED 2026-10-06: operator confirmed guarded 051 installation, fresh cutover
+SUCCESS, then post-C6 receipt/zero-plaintext/zero-mismatch check and backup SUCCESS.
+The completed private archive listing was independently verified. This new dump
+has not yet been restore-tested. Do not rerun the installation or cutover below;
+use status-only inspection if a later question arises. Earlier failed-attempt
+details are retained below as release history. C7 final audit remains pending.
+
 C6 has four guarded steps:
 
 Production follow-up, 2026-10-06: migration 050 and the C6 Edge/cache 076 are

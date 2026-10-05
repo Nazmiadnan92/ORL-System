@@ -4,8 +4,8 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest migration applied to production: `050_ic_c6_plaintext_cutover.sql` (guarded installer reported SUCCESS on 2026-10-05; C6 Edge/cache 076 deployed). This prepares C6 but does not mean plaintext removal has completed.
-- C6 cutover remains INCOMPLETE, 2026-10-06: fresh crypto verification passed for 331 identities, but the cutover failed. Supabase Postgres logs show SQLSTATE 21000, `UPDATE requires a WHERE clause`. Operator status confirms 332 requests, 331 protected/331 plaintext, one blank, zero identity mismatches and `cutover_complete=false`. Repair `051_ic_c6_scoped_updates.sql` is prepared locally, NOT yet confirmed installed. Its guarded installer backs up first and changes only the reviewed function definition; a fresh C6 verification/cutover and post-C6 backup are still required.
+- Latest migration applied to production: `051_ic_c6_scoped_updates.sql` (operator-confirmed guarded installer SUCCESS on 2026-10-06). C6 Edge/cache 076 is deployed.
+- C6 completed, 2026-10-06: after repair 051, the operator confirmed fresh verification/cutover SUCCESS and the separate post-C6 check/backup SUCCESS. That check requires a cutover receipt, zero operational plaintext IC rows and zero identity mismatches. The completed post-C6 dump was independently found and its archive listing checked without exposing data. This new dump has not yet been restore-tested. The earlier attempt failed atomically with SQLSTATE 21000 (`UPDATE requires a WHERE clause`); 051 scopes the four free-text updates without disabling safe-update protections. Historical pre-C6 backups still require private handling because they can retain plaintext. C7 final audit remains pending.
 - Package B foundation/synthetic scope is COMPLETE as of 2026-10-01 (Malaysia). Migration 045 installation and key recovery/backup are operator-confirmed. Six secret names are verified present. `ic-readiness` is deployed at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266`; legacy JWT is OFF with custom Webmaster authorization. Live Webmaster crypto checks and missing/unknown/revoked-session denial passed (operator log reviewed). Readiness is DISABLED again, independently verified by HTTP 503. Packages C1, C2 and C3 are complete.
 - Phase 4 installation confirmed by the operator after the guarded installer reported SUCCESS. Restore was NOT executed on production. Production Postpone/Cancel workflow smoke testing remains pending; Phase 1 login was confirmed working by the operator.
 - Phase 5 checked Reassign installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 049; live Reassign smoke testing remains pending.
@@ -22,12 +22,12 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 - C1 legacy gates cover thirty-one entry-point names. Protected workflows and masked reads pass after gating; Database Repair is Webmaster/service-only and Restore-generation fenced. Audit/history/free-text output and generated OT lists defensively mask known identifiers. Administrative controls retain patient/identity records and refuse stale metadata snapshots or lock contention. The actual 018 parser is tested with synthetic HTTP responses only; live holiday-fetch accuracy remains an operational check.
 - Package C4 verification completed on 2026-10-05: fresh full private dump, isolated local application-schema restore with ACLs, recovery fence/finalizer/session invalidation and recovered-key comparison of all 331 encrypted identities passed. Sanitized report and backup SHA-256 independently checked after operator SUCCESS; temporary restore removed. This is not a full Supabase infrastructure/Storage recovery. No new migration, production Restore or plaintext removal.
 - Package C5 observation completed on 2026-10-05: exact live assets/protection state and sanitized Edge denials passed, followed by one temporary Webmaster read-only session. Core role-scoped reads passed, all 156 populated identity fields observed were masked, no Reveal/patient mutation ran, and logout was confirmed. The sanitized private report contains no patient value or secret. No migration or display fix was required; C6 remains a separate approval gate.
-- Next pending production migration: `051`. Next unused migration number: `052`.
+- No prepared migration remains pending for C6. Next unused migration number: `052`.
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `050` again on the active database.
+Do **not** run migrations `001` to `051` again on the active database.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
@@ -103,7 +103,7 @@ values
 | 048 | `048_ic_c2_controlled_legacy_backfill.sql` | Controlled legacy identity encryption in version-fenced batches plus complete cryptographic reconciliation; plaintext retained pending C6 |
 | 049 | `049_ic_c3_authorized_reveal.sql` | Purpose-bound, audited Admin/Webmaster Reveal |
 | 050 | `050_ic_c6_plaintext_cutover.sql` | C6 preparation, encrypted-only writes/search/backup and separately invoked plaintext cutover |
-| 051 | `051_ic_c6_scoped_updates.sql` | Pending: repair four C6 free-text updates with change-specific WHERE predicates; does not execute cutover |
+| 051 | `051_ic_c6_scoped_updates.sql` | Repair four C6 free-text updates with change-specific WHERE predicates; does not itself execute cutover |
 
 Package B design, key recovery requirements, tests and installation sequence are in
 [`security/ic-protection-package-b.md`](../security/ic-protection-package-b.md).
