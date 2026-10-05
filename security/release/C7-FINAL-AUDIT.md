@@ -85,3 +85,9 @@ was explicitly requested using the existing authorized GitHub credential and
 returned queued. The configured source remains main /docs; no hosting settings
 were changed. Use Semak-C7-Website.cmd after publication, NOT the full C7 installer
 or recovery runner. C7 is not closed until the authenticated live observation passes.
+
+Publication follow-up: GitHub Pages run 37350619421 completed successfully for
+2f3f105. The independent observe-c7.ps1 -PublicOnly check then passed: cache 077
+and clinical 062 assets are live, protection is enabled, and missing/random
+session requests are denied with safe headers. Only authenticated live observation
+remains; Semak-C7-Website.cmd requests WEBSITE credentials only.
