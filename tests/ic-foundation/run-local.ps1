@@ -100,6 +100,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C5 masking observer self-test failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\c6-release.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'C6 guarded release artifact tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c7-release.test.mjs') (Join-Path $PSScriptRoot '..\ic-write\c7-browser.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C7 release/browser tests failed.' }
+    & (Join-Path $orlRepo 'security\release\verify-c7.ps1') -SelfTest
+    if ($LASTEXITCODE -ne 0) { throw 'C7 synthetic masked-source recovery test failed.' }
+    & (Join-Path $orlRepo 'security\release\observe-c7.ps1') -SelfTest
+    if ($LASTEXITCODE -ne 0) { throw 'C7 masked observer test failed.' }
   }
 } finally {
   $env:PGOPTIONS=$orlOldOptions
@@ -110,4 +116,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Test server shutdown failed; inspect before continuing.' }
     Write-Output 'STOPPED: disposable local test server.'
   }
+}
+if($IncludeC1){
+  # C7 hash guards apply to shipped 046 definitions, not the C1 local-only fixtures.
+  & (Join-Path $PSScriptRoot '..\ic-write\run-c7-local.ps1')
+  if($LASTEXITCODE-ne0){throw 'C7 production-definition integration failed.'}
 }

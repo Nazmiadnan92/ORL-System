@@ -4,7 +4,7 @@ test('C3 release pins 049 and remains present under the later C6 cache',()=>{
   const migration=read('supabase/049_ic_c3_authorized_reveal.sql'),hash=createHash('sha256').update(Buffer.from(migration)).digest('hex').toUpperCase();
   const install=read('security/release/install-049.ps1'),html=read('docs/index.html'),app=read('docs/app.js');
   assert.match(install,new RegExp(hash));assert.ok(install.indexOf('pg_dump.exe')<install.indexOf('INSTALL 049'));
-  assert.match(html,/app\.js\?v=076/);assert.match(app,/ic-client\.mjs\?v=076/);
+  assert.match(html,/app\.js\?v=077/);assert.match(app,/ic-client\.mjs\?v=077/);
   assert.doesNotMatch([migration,install,read('security/release/deploy-edge-c3.ps1')].join('\n'),/sb_secret_|service_role\s*[=:]\s*['"][A-Za-z0-9]/i);
 });
 test('C3 policy is role, password, purpose, expiry and value-free audit bound',()=>{

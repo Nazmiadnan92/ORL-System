@@ -1,6 +1,6 @@
 // Age precision and request-based sub-specialty statistics (040/041).
 function icAgeParts(ic,at=new Date(),today=new Date()){
- const raw=String(ic||'').trim();if(!/^\d{6}-?\d{2}-?\d{4}$/.test(raw))return null;
+ const raw=String(ic||'').trim();if(!/^(?:\d{6}-?\d{2}-?\d{4}|\d{6}-\*{2}-\*{4})$/.test(raw))return null;
  const n=raw.replace(/-/g,''),month=+n.slice(2,4),day=+n.slice(4,6);let year=2000+(+n.slice(0,2));
  let born=new Date(year,month-1,day);if(born>today){year-=100;born=new Date(year,month-1,day)}
  if(born.getFullYear()!==year||born.getMonth()!==month-1||born.getDate()!==day||born>at)return null;

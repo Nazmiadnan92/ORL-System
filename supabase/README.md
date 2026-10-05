@@ -4,6 +4,12 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
+- C7 prepared (not yet production-complete): migration 052 repairs masked-DOB age
+  calculation and scoped recovery deletes, including temporary reveal-lease cleanup
+  during explicit application restore. Frontend cache 077 prevents masked-IC patient
+  history collisions and handles visible DOB prefixes. See
+  ../security/release/C7-FINAL-AUDIT.md for verification and operator gates.
+
 - Latest migration applied to production: `051_ic_c6_scoped_updates.sql` (operator-confirmed guarded installer SUCCESS on 2026-10-06). C6 Edge/cache 076 is deployed.
 - C6 completed, 2026-10-06: after repair 051, the operator confirmed fresh verification/cutover SUCCESS and the separate post-C6 check/backup SUCCESS. That check requires a cutover receipt, zero operational plaintext IC rows and zero identity mismatches. The completed post-C6 dump was independently found and its archive listing checked without exposing data. This new dump has not yet been restore-tested. The earlier attempt failed atomically with SQLSTATE 21000 (`UPDATE requires a WHERE clause`); 051 scopes the four free-text updates without disabling safe-update protections. Historical pre-C6 backups still require private handling because they can retain plaintext. C7 final audit remains pending.
 - Package B foundation/synthetic scope is COMPLETE as of 2026-10-01 (Malaysia). Migration 045 installation and key recovery/backup are operator-confirmed. Six secret names are verified present. `ic-readiness` is deployed at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266`; legacy JWT is OFF with custom Webmaster authorization. Live Webmaster crypto checks and missing/unknown/revoked-session denial passed (operator log reviewed). Readiness is DISABLED again, independently verified by HTTP 503. Packages C1, C2 and C3 are complete.
