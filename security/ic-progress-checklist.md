@@ -52,9 +52,19 @@ used for activation.
 
 This verifies the application schemas locally, with ownership mapped to the local
 owner. It is not a full Supabase infrastructure/Storage recovery or production Restore
-test. Live observation remains C5. No production writes or plaintext removal occurred.
+test. No production writes or plaintext removal occurred.
 
-Remaining later packages: C5 observation (2), C6
-plaintext cutover/removal (4), and C7 final audit/backup (3).
-Per the current model-cost preference: use GPT-5.6 Sol Medium for C5 and GPT-5.6
-Sol High for C4/C6/C7. Full technical evidence and limits: `ic-protection-package-c.md`.
+## C5: 2/2 observation steps complete
+
+| Step | Scope | Status |
+| --- | --- | --- |
+| 1 | Public live-release and safe-denial observation | Complete, 2026-10-05: exact cache assets, enabled protection, absence of a public service-role variable, and sanitized missing/random-session Edge denials passed |
+| 2 | Authenticated role-scoped read-only observation | Complete: Webmaster core reads succeeded; 156 populated identity fields were masked, no Reveal or patient mutation ran, and the temporary session logged out |
+
+The sanitized private C5 report contains counts and control outcomes only. No patient
+value, password, token or encryption key is recorded. No display correction or migration
+was required.
+
+Remaining later packages: C6 plaintext cutover/removal (4) and C7 final audit/backup
+(3). Per the current model-cost preference, use GPT-5.6 Sol High for C6/C7. Full
+technical evidence and limits: `ic-protection-package-c.md`.

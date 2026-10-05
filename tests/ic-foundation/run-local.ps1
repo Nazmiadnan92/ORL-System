@@ -90,6 +90,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C4 guarded verification artifact tests failed.' }
     & (Join-Path $orlRepo 'security\release\verify-c4.ps1') -SelfTest
     if ($LASTEXITCODE -ne 0) { throw 'C4 synthetic recovery/identity verification failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c5-observation.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C5 observation artifact tests failed.' }
+    & (Join-Path $orlRepo 'security\release\observe-c5.ps1') -SelfTest
+    if ($LASTEXITCODE -ne 0) { throw 'C5 masking observer self-test failed.' }
   }
 } finally {
   $env:PGOPTIONS=$orlOldOptions

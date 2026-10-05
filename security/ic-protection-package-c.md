@@ -362,11 +362,11 @@ has been performed, and C1 remains default-OFF.
 | C2 | Complete 2026-10-05: 331 legacy identities encrypted and fully reconciled; post-C2 dump verified | GPT-5.6 Sol : High |
 | C3 | Complete 2026-10-05: password/purpose-bound one-record Reveal, value-free audit and 60-second UI expiry | GPT-5.6 Sol : Medium |
 | C4 | Complete 2026-10-05: workflow regression and actual private-backup local recovery; all 331 encrypted identities verified using recovered keys | GPT-5.6 Sol : High |
-| C5 | Pending: observation and minor display fixes | GPT-5.6 Sol : Medium |
+| C5 | Complete 2026-10-05: public release/Edge denials and authenticated role-scoped reads observed; 156 masked fields, zero Reveal/mutations, logout confirmed | GPT-5.6 Sol : Medium |
 | C6 | Pending: remove plaintext only after reconciliation and approval | GPT-5.6 Sol : High |
 | C7 | Pending: final audit and new backup | GPT-5.6 Sol : High |
 
-Next after completed C4: C5 live observation. C4's sanitized report records 332
+Next after completed C5: separately approve C6 plaintext cutover/removal. C4's sanitized report records 332
 requests, 331 verified identities and 1,733 audit rows. The private dump checksum was
 independently matched after operator SUCCESS. Application schemas were restored with
 ACLs into a disposable local cluster, the recovery fence was initially closed, local
@@ -374,6 +374,13 @@ owner finalization rotated generation/invalidated sessions, and temporary data w
 removed before SUCCESS. Ownership was mapped to the local owner; this does not certify
 Supabase infrastructure, Storage or production Restore. Plaintext removal still requires
 the separate Package C6 approval gate. See `release/C4-VERIFICATION-RUNBOOK.md`.
+
+C5's fixed live-asset and safe-denial checks passed. The operator then completed one
+temporary Webmaster login through the read-only allowlist: core role-scoped reads passed,
+156 populated `patient_ic` fields matched the approved display mask, no Reveal or patient
+mutation was invoked, and logout was confirmed. The sanitized local report contains no
+patient value, credential, session token or key. No C5 migration or display fix was needed;
+see `release/C5-OBSERVATION-RUNBOOK.md`.
 
 ## Restore-generation and local legacy-conversion checkpoint
 
