@@ -1,5 +1,17 @@
 # Package C — controlled IC encryption rollout
 
+## C6 repair checkpoint, 2026-10-06 Malaysia
+
+Migration 050, the C6 Edge function and cache 076 are deployed. The operator's
+fresh reconciliation verified all 331 identities, but C6 cutover was rejected by
+PostgreSQL (SQLSTATE 21000: `UPDATE requires a WHERE clause`). Authenticated status
+afterwards confirms 332 requests, 331 protected and still-plaintext identities,
+one blank, zero identity mismatches, and no cutover receipt. No completion is claimed.
+Migration 051 is a local, pending definition-only repair of four unscoped free-text
+updates. It preserves authorization, crypto receipts, atomicity, permissions and
+database safe-update protections; its installer requires a fresh private dump.
+After installation, fresh C6 verification/cutover and the post-C6 backup remain.
+
 ## Checkpoint, 2026-10-01 Malaysia
 
 **C1 production activation is complete.** Migration 046, the exact-project Edge gateway

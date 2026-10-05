@@ -22,6 +22,11 @@ test('migration 050 requires fresh crypto receipt, masks legacy rows and keeps c
     doctor:'Test Doctor',specialist:'Test Specialist',sub_specialty:'Gen ORL',phone:'0',remark:`Identity ${raw}`};
   assert.equal(service(`select public.orl_ic_c1_create(${literal(wm)},${literal(requestId)},${json(data)},
     ${json(await engine.encrypt(raw,requestId))},${json(await engine.searchHash(raw))},${literal(generation)});`),requestId);
+  sql(`update public.orl_requests set deletion_reason=${literal(raw)},review_note=${literal(raw)},
+    postpone_history=${json([{reason:raw}])} where id=${literal(requestId)};
+    insert into public.orl_audit_log(action,details,record_id) values ('C6_TEST',${literal(raw)},${literal(raw)}),('C6_UNCHANGED','No identity here','unchanged');
+    insert into public.orl_holidays(holiday_date,title,description) values ('2098-01-01','C6 synthetic',${literal(raw)});
+    insert into public.orl_ot_sessions(ot_date,day_name,note,special_title) values ('2098-01-01','Wednesday',${literal(raw)},${literal(raw)});`);
   let state=JSON.parse(service(`select public.orl_ic_c2_status(${literal(wm)},${literal(password)});`));
   const run=JSON.parse(service(`select public.orl_ic_c2_verify_start(${literal(wm)},${literal(password)},${literal(generation)},${literal(state.revision)});`));
   const view=JSON.parse(service(`select public.orl_ic_c2_verify_view(${literal(wm)},${literal(password)},${literal(generation)},${literal(run.run_id)});`));
@@ -33,10 +38,26 @@ test('migration 050 requires fresh crypto receipt, masks legacy rows and keeps c
   execFileSync(process.env.ORL_IC_TEST_PSQL,[...args,'-f',migration],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
   assert.throws(()=>execFileSync(process.env.ORL_IC_TEST_PSQL,[...args,'-f',migration],{encoding:'utf8',stdio:['ignore','pipe','pipe']}));
   state=JSON.parse(service(`select public.orl_ic_c6_status(${literal(wm)},${literal(password)});`));assert.equal(state.plaintext_rows,1);
+  const beforeRepair=sql(`select row_to_json(r) from public.orl_requests r where id=${literal(requestId)}`);
+  const repair=fileURLToPath(new URL('../../supabase/051_ic_c6_scoped_updates.sql',import.meta.url));
+  const beforeBody=sql("select prosrc from pg_proc where oid='public.orl_ic_c6_cutover(uuid,text,uuid,uuid)'::regprocedure");
+  assert.ok([...beforeBody.matchAll(/update public\.[\s\S]*?;/g)].some(m=>!/\bwhere\b/i.test(m[0])));
+  execFileSync(process.env.ORL_IC_TEST_PSQL,[...args,'-f',repair],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
+  assert.equal(sql(`select row_to_json(r) from public.orl_requests r where id=${literal(requestId)}`),beforeRepair);
+  assert.throws(()=>execFileSync(process.env.ORL_IC_TEST_PSQL,[...args,'-f',repair],{encoding:'utf8',stdio:['ignore','pipe','pipe']}));
+  const repairedBody=sql("select prosrc from pg_proc where oid='public.orl_ic_c6_cutover(uuid,text,uuid,uuid)'::regprocedure");
+  const updates=[...repairedBody.matchAll(/update public\.[\s\S]*?;/g)];assert.equal(updates.length,5);
+  for(const [update] of updates)assert.match(update,/\bwhere\b/i);
+  const untouchedAudit=sql("select xmin::text from public.orl_audit_log where action='C6_UNCHANGED'");
   const done=JSON.parse(service(`select public.orl_ic_c6_cutover(${literal(wm)},${literal(password)},${literal(generation)},${literal(run.run_id)});`));
   assert.equal(done.status,'COMPLETED');assert.equal(done.plaintext_rows,0);
   assert.equal(sql(`select patient_ic from public.orl_requests where id=${literal(requestId)}`),'010203-**-****');
   assert.equal(sql(`select remark from public.orl_requests where id=${literal(requestId)}`),'Identity 010203-**-****');
+  assert.equal(sql(`select deletion_reason||'|'||review_note||'|'||(postpone_history->0->>'reason') from public.orl_requests where id=${literal(requestId)}`),'010203-**-****|010203-**-****|010203-**-****');
+  assert.equal(sql("select details||'|'||record_id from public.orl_audit_log where action='C6_TEST'"),'010203-**-****|010203-**-****');
+  assert.equal(sql("select description from public.orl_holidays where holiday_date='2098-01-01'"),'010203-**-****');
+  assert.equal(sql("select note||'|'||special_title from public.orl_ot_sessions where ot_date='2098-01-01'"),'010203-**-****|010203-**-****');
+  assert.equal(sql("select xmin::text from public.orl_audit_log where action='C6_UNCHANGED'"),untouchedAudit);
   assert.throws(()=>service(`select public.orl_ic_c6_cutover(${literal(wm)},${literal(password)},${literal(generation)},${literal(run.run_id)});`));
   const secondId=crypto.randomUUID(),secondRaw='A1234567',second={...data,patient_ic:secondRaw,mrn:'C6-'+secondId,remark:''};
   assert.equal(service(`select public.orl_ic_c1_create(${literal(wm)},${literal(secondId)},${json(second)},

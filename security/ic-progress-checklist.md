@@ -65,6 +65,18 @@ The sanitized private C5 report contains counts and control outcomes only. No pa
 value, password, token or encryption key is recorded. No display correction or migration
 was required.
 
-Remaining later packages: C6 plaintext cutover/removal (4) and C7 final audit/backup
-(3). Per the current model-cost preference, use GPT-5.6 Sol High for C6/C7. Full
+## C6: installation/website ready; cutover blocked pending repair 051
+
+1. Migration 050 preparation: operator-confirmed installed after private backup.
+2. Edge and website cache 076: deployed/published at `8e5346e` with restore tag
+   `restore/pre-c6-cutover-20261005`.
+3. Cutover: NOT complete. All 331 encrypted identities passed fresh verification,
+   but production rejected an unscoped UPDATE (SQLSTATE 21000). Status checked
+   2026-10-06: 332 requests, 331 protected, 331 plaintext, one blank, zero identity
+   mismatches, `cutover_complete=false`. Repair 051 prepared locally; installation,
+   fresh verification and operator-confirmed cutover remain pending.
+4. Post-C6 status and full private backup: pending successful cutover.
+
+Remaining later package: C7 final audit/backup (3). Per the current model-cost
+preference, use GPT-5.6 Sol High for C6/C7. Full
 technical evidence and limits: `ic-protection-package-c.md`.
