@@ -62,6 +62,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C2 Edge encryption/reconciliation tests failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\c2-integration.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'C2 migration/backfill integration tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c3-gateway.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C3 gateway/reveal tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c3-integration.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C3 migration/lease/audit integration tests failed.' }
     & (Join-Path $PSScriptRoot '..\ic-write\preflight-recovery.test.ps1') -Phase Post
     if ($LASTEXITCODE -ne 0) { throw 'C1 post-046 release preflight regression failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\browser.test.mjs')
@@ -80,6 +84,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C1 desktop/mobile/Edge runtime policy tests failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\release.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'C1 guarded release artifact tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c2-release.test.mjs') (Join-Path $PSScriptRoot '..\ic-write\c3-release.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C2/C3 guarded release artifact tests failed.' }
   }
 } finally {
   $env:PGOPTIONS=$orlOldOptions

@@ -33,7 +33,15 @@ used for activation.
 | 3 | Complete cryptographic reconciliation | Complete: every encrypted identity was decrypted and exactly compared with its source plus keyed search hash; version/current-generation receipts covered all 331 rows before finalization |
 | 4 | Production completion and recovery copy | Complete: C2 finalization was recorded, plaintext was retained for C6, and a verified full post-C2 private dump was saved |
 
-Remaining later packages: C3 Reveal (3 steps), C4 end-to-end verification (4), C5
-observation (2), C6 plaintext cutover/removal (4), and C7 final audit/backup (3).
-Per the current model-cost preference: use GPT-5.6 Sol Medium for C3/C5 and GPT-5.6
+## C3: 3/3 steps complete
+
+| Step | Scope | Status |
+| --- | --- | --- |
+| 1 | Explicit Reveal policy and guarded migration 049 | Complete, 2026-10-05: Admin/Webmaster only, current-password and fixed-purpose checks, one-record two-minute authorization lease, 60-second display expiry, fresh verified private dump and production postcheck |
+| 2 | Cryptographic Reveal gateway and audit | Complete: exact envelope plus keyed search hash are verified before release; commit is one-time, generation/version fenced and writes an audit row without the IC value; C3 Edge deployment reported SUCCESS |
+| 3 | Safe responsive UI and verification | Complete: cache 075 supplies explicit Reveal, auto-hide on timeout/tab hiding, no browser persistence and no Staff button; 221 local tests passed. No real patient Reveal was performed merely for testing |
+
+Remaining later packages: C4 end-to-end verification (4), C5 observation (2), C6
+plaintext cutover/removal (4), and C7 final audit/backup (3).
+Per the current model-cost preference: use GPT-5.6 Sol Medium for C5 and GPT-5.6
 Sol High for C4/C6/C7. Full technical evidence and limits: `ic-protection-package-c.md`.

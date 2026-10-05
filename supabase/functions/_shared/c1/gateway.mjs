@@ -4,9 +4,11 @@ import { prepareIdentityChange, verifyIdentityBackup } from './compatibility.mjs
 import { convertLegacyBackup } from './legacy-backup.mjs';
 import { validControl, validControlView } from './controls.mjs';
 import { prepareC2Backfill, verifyC2Identities } from './c2-maintenance.mjs';
+import { verifyC3Reveal } from './c3-reveal.mjs';
 import { C1_BACKUP_BODY_BYTES, C1_RATE_MAX_REQUESTS, C1_RATE_WINDOW_SECONDS, C1_SMALL_BODY_BYTES, backupWithinRuntimePolicy } from './runtime-policy.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
+const timestamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
 const fields = new Set(['patient_ic', 'age', 'age_months', 'mrn', 'patient_name', 'surgery', 'diagnosis',
   'doctor', 'specialist', 'sub_specialty', 'phone', 'remark', 'cancel_reason', 'postpone_count']);
 const exact = (body, keys) => Object.keys(body).sort().join(',') === [...keys].sort().join(',');
@@ -51,6 +53,26 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
       if (!object(body) || typeof body.operation !== 'string') throw new Error('Invalid');
       if (!['BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(body.operation) && JSON.stringify(body).length > C1_SMALL_BODY_BYTES) throw new Error('Invalid');
     } catch { return reply(400, { error: 'Invalid or oversized protected request.' }); }
+
+    if(body.operation==='REVEAL'){
+      if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
+      if(!exact(body,['operation','password','request_id','purpose','generation'])||!password(body.password)
+        ||!uuid.test(body.request_id||'')||!uuid.test(body.generation||'')
+        ||!['CLINICAL_VERIFICATION','PATIENT_IDENTIFICATION','DATA_CORRECTION'].includes(body.purpose))
+        return reply(400,{error:'Invalid IC reveal request.'});
+      try{
+        const view=await rpc('orl_ic_c3_reveal_view',{p_session_token:token,p_password:body.password,
+          p_request_id:body.request_id,p_purpose:body.purpose,p_generation:body.generation});
+        const verified=await verifyC3Reveal(view,cryptoConfig());
+        const committed=await rpc('orl_ic_c3_reveal_commit',{p_session_token:token,p_password:body.password,
+          p_lease_id:verified.lease_id,p_request_id:verified.request_id,p_generation:verified.generation,
+          p_identity_updated_at:verified.identity_updated_at});
+        if(committed?.lease_id!==verified.lease_id||committed?.request_id!==verified.request_id
+          ||committed?.generation!==verified.generation||!timestamp(committed?.expires_at))throw Error('Invalid');
+        return reply(200,{result:{request_id:verified.request_id,patient_ic:verified.patient_ic,
+          purpose:committed.purpose,expires_at:committed.expires_at}});
+      }catch{return reply(403,{error:'IC reveal was not authorized or confirmed. Nothing is displayed; do not retry blindly.'})}
+    }
 
     if (body.operation === 'C2_STATUS') {
       if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});

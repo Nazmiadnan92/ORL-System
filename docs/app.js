@@ -13,7 +13,7 @@ async function legacyRpc(name,args={}){const r=await fetch(`${cfg.supabaseUrl}/r
 let protectedIcClientPromise;
 function protectedIcEnabled(){return cfg.icProtectionEnabled===true}
 function protectedIcClient(){
-  if(!protectedIcClientPromise)protectedIcClientPromise=import('./ic-client.mjs?v=073').then(module=>{
+  if(!protectedIcClientPromise)protectedIcClientPromise=import('./ic-client.mjs?v=075').then(module=>{
     const send=module.createIcTransport({baseUrl:cfg.supabaseUrl,publishableKey:cfg.supabaseAnonKey,session:()=>token});
     let owner,manager;
     const getManager=()=>{
@@ -128,7 +128,7 @@ async function showPendingCreation(form){
   return true;
 }
 function toast(s){$('#toast').textContent=s;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),2600)}
-function modal(html){$('#modalBody').innerHTML=html;$('#modal').hidden=false}function closeModal(){$('#modal').hidden=true}
+function modal(html){$('#modalBody').innerHTML=html;$('#modal').hidden=false}function closeModal(){if(window._icRevealHide)window._icRevealHide();$('#modalBody').textContent='';$('#modal').hidden=true}
 function head(title,sub=''){return `<h1 class="title">${title}</h1><p class="sub">${sub}</p>`}
 function field(label,name,type='text',wide=''){return `<div class="field ${wide}"><label>${label}<input name="${name}" type="${type}" required></label></div>`}
 function status(v){const known=['DRAFT','CONFIRMED','PENDING','APPROVED','REJECTED','SCHEDULED','COMPLETED','CANCELLED','AVAILABLE','RESERVED','CLOSED','ACTIVE','HOLIDAY'];return `<span class="badge${known.includes(v)?' '+v:''}">${esc(v)}</span>`}
@@ -907,12 +907,41 @@ async function approveSlotRequest(requestId){
     refreshNotifications();
   }catch(error){if(token===owner)toast(error.message)}finally{reviewBusy=false}
 }
+function revealPatientIc(requestId,generation,masked=''){
+  if(!protectedIcEnabled()||!['ADMIN','WEBMASTER'].includes(user?.role)){toast('Admin or Webmaster access required.');return}
+  if(!/^[0-9a-f-]{36}$/i.test(requestId||'')||!/^[0-9a-f-]{36}$/i.test(generation||'')){toast('Reload the schedule before Reveal IC.');return}
+  const owner=token;
+  modal(`<h2>🔐 Reveal Full IC</h2><div class="security-warning">Full IC is sensitive. Access is audited and the number will hide automatically after 60 seconds or when this tab is hidden.</div><form id="icRevealForm"><div class="field"><label>Purpose<select name="purpose" required><option value="">Select purpose</option><option value="CLINICAL_VERIFICATION">Clinical verification</option><option value="PATIENT_IDENTIFICATION">Patient identification</option><option value="DATA_CORRECTION">Data correction</option></select></label></div><div class="field"><label>Your Current Password<input name="password" type="password" autocomplete="current-password" required></label></div><label class="confirm-check"><input type="checkbox" required> I am authorized to view this IC for the selected purpose.</label><div class="actions"><button class="primary">Reveal for 60 seconds</button><button type="button" class="secondary" onclick="closeModal()">Cancel</button></div></form><div id="icRevealResult" class="ic-reveal-result" hidden></div>`);
+  $('#icRevealForm').onsubmit=async event=>{
+    event.preventDefault();const form=event.target,button=event.submitter,data=Object.fromEntries(new FormData(form));
+    button.disabled=true;button.textContent='Verifying…';
+    try{
+      if(token!==owner)throw Error('Please sign in again.');
+      const result=await rpc('orl_ic_reveal',{p_session_token:owner,p_password:data.password,p_request_id:requestId,
+        p_purpose:data.purpose,p_generation:generation});
+      if(token!==owner)throw Error('Please sign in again.');
+      const expires=Date.parse(result.expires_at),remaining=expires-Date.now();
+      if(!Number.isFinite(expires)||remaining<=0||remaining>65000)throw Error('Reveal expiry could not be verified.');
+      form.remove();const box=$('#icRevealResult');box.hidden=false;
+      const value=document.createElement('strong'),timer=document.createElement('span'),note=document.createElement('small');
+      value.className='ic-reveal-value';value.textContent=result.patient_ic;
+      note.textContent='Do not photograph, copy, or disclose this number unless clinically required.';
+      box.replaceChildren(value,timer,note);
+      let hidden=false;
+      const hide=()=>{if(hidden)return;hidden=true;if(window._icRevealTimer)clearInterval(window._icRevealTimer);window._icRevealTimer=null;document.removeEventListener('visibilitychange',onVisibility);value.textContent=masked||'IC hidden';timer.textContent='Hidden';window._icRevealHide=null};
+      const onVisibility=()=>{if(document.hidden)hide()};document.addEventListener('visibilitychange',onVisibility);
+      window._icRevealHide=hide;
+      const tick=()=>{const seconds=Math.max(0,Math.ceil((expires-Date.now())/1000));timer.textContent=`Auto-hide in ${seconds}s`;if(seconds<=0)hide()};
+      tick();window._icRevealTimer=setInterval(tick,250);
+    }catch(error){toast(error.message);button.disabled=false;button.textContent='Reveal for 60 seconds'}
+  };
+}
 function slotCard(sl,s,admin){
   const filled=!!sl.patient_name,label=(sl.type==='SPECIAL'?'★ Special Slot ':'Main Slot ')+sl.number,pick=canPickSlot(sl,s),cancelled=sl.request_status==='CANCELLED';
   const pendingApproval=filled&&sl.status==='RESERVED',computed=filled?patientAgeFromIc(sl.patient_ic,s.ot_date):'—',age=sl.age??computed;
   const postponed=sl.postpone_count?`<span class="badge patient-postpone">🔁 Postponed ×${esc(sl.postpone_count)}</span>`:'';
   let actions='';
-  if(filled){actions=`${admin&&pendingApproval?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}<button class="postpone-slot mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
+  if(filled){actions=`${admin&&pendingApproval?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}${admin&&protectedIcEnabled()?`<button class="reveal-ic mini" onclick="revealPatientIc('${sl.request_id}','${sl._ic_generation}')">🔐 Reveal IC</button>`:''}<button class="postpone-slot mini" onclick="postponeSlot('${sl.id}')">Postpone</button>${admin?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>${admin?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}`}
   else{
     if(pick)actions+=`<button class="primary mini" onclick="assignSlot('${sl.id}')">Assign OT Slot</button>`;
     else if(directRequestAllowed(sl,s))actions+=`<button class="primary mini request-slot" onclick="requestSlot('${sl.id}')">＋ Request OT Slot</button>`;

@@ -141,14 +141,14 @@ test('wrong passphrase/tampering fail; old files still open but protected restor
   assert.throws(() => previewBackupVersion({ ...base(), version: 3 }));
 });
 
-test('release frontend protection remains enabled while cache 074 publishes the corrected IC mask', () => {
+test('release frontend protection remains enabled while cache 075 publishes C3 Reveal', () => {
   const html = readFileSync(new URL('../../docs/index.html', import.meta.url), 'utf8');
   const config = readFileSync(new URL('../../docs/config.js', import.meta.url), 'utf8');
   assert.equal(html.includes('c1-create'), false);
   assert.equal(/icProtectionEnabled\s*:\s*true/.test(config), true);
   assert.match(html, /config\.js\?v=025/);
-  assert.match(html, /app\.js\?v=074/);
-  assert.match(app, /ic-client\.mjs\?v=073/);
+  assert.match(html, /app\.js\?v=075/);
+  assert.match(app, /ic-client\.mjs\?v=075/);
   assert.ok(app.includes('cfg.icProtectionEnabled===true'));
   assert.ok(app.includes("!protectedIcEnabled()?await legacyRpc(name,args):await (await protectedIcClient()).route(name,args)"));
 });

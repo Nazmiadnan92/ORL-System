@@ -1,6 +1,6 @@
 // Server-only fixed-RPC adapter; never import into the browser bundle.
 import { C1_RPC_TIMEOUT_MS } from './runtime-policy.mjs';
-const allowed = new Set(['orl_ic_c2_status','orl_ic_c2_backfill_view','orl_ic_c2_backfill_commit','orl_ic_c2_verify_start','orl_ic_c2_verify_view','orl_ic_c2_verify_commit','orl_ic_c2_finalize','orl_ic_c1_rate_limit','orl_ic_c1_unscheduled_count','orl_ic_c1_repair_view','orl_ic_c1_repair','orl_ic_c1_control_view','orl_ic_c1_control','orl_ic_c1_authorize', 'orl_ic_c1_check_password', 'orl_ic_c1_create',
+const allowed = new Set(['orl_ic_c3_reveal_view','orl_ic_c3_reveal_commit','orl_ic_c2_status','orl_ic_c2_backfill_view','orl_ic_c2_backfill_commit','orl_ic_c2_verify_start','orl_ic_c2_verify_view','orl_ic_c2_verify_commit','orl_ic_c2_finalize','orl_ic_c1_rate_limit','orl_ic_c1_unscheduled_count','orl_ic_c1_repair_view','orl_ic_c1_repair','orl_ic_c1_control_view','orl_ic_c1_control','orl_ic_c1_authorize', 'orl_ic_c1_check_password', 'orl_ic_c1_create',
   'orl_ic_c1_mutate', 'orl_ic_c1_confirm', 'orl_ic_c1_assign', 'orl_ic_c1_review', 'orl_ic_c1_clear', 'orl_ic_c1_deletion', 'orl_ic_c1_reassign', 'orl_ic_c1_remove', 'orl_ic_c1_export', 'orl_ic_c1_import', 'orl_ic_c1_resolve_create', 'orl_ic_c1_prepare_create']);
 export function createBackendRpc({ baseUrl, secretKey, fetchImpl = fetch }) {
   const base = new URL(baseUrl);

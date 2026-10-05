@@ -5,7 +5,7 @@ export function createIcTransport({ baseUrl, publishableKey, session, fetchImpl 
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Invalid backend URL.');
   const endpoint = new URL('/functions/v1/ic-requests', base);
   return async (operation, payload) => {
-    if (!['UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
+    if (!['REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
     const token = session();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) throw new Error('Please sign in again.');
     let response;
@@ -179,6 +179,20 @@ export function createIcRpcRouter({ send, legacy, session, creation }) {
     orl_delete_holiday:'HOLIDAY_DELETE',orl_generate_public_holidays:'HOLIDAY_GENERATE',orl_clear_all_holidays:'HOLIDAY_CLEAR',orl_save_settings:'SETTINGS'};
   const issued=new WeakSet(),used=new WeakSet();
   return async (name, args = {}) => {
+    if(name==='orl_ic_reveal'){
+      const owner=session();
+      if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      if(!generationUuid(args.p_request_id)||!generationUuid(args.p_generation)
+        ||typeof args.p_password!=='string'||!args.p_password||args.p_password.length>1024
+        ||!['CLINICAL_VERIFICATION','PATIENT_IDENTIFICATION','DATA_CORRECTION'].includes(args.p_purpose))
+        throw Error('Reopen Reveal IC and complete every field.');
+      const response=await send('REVEAL',{password:args.p_password,request_id:args.p_request_id,
+        purpose:args.p_purpose,generation:args.p_generation});
+      if(session()!==owner||response?.result?.request_id!==args.p_request_id
+        ||typeof response.result.patient_ic!=='string'||!response.result.patient_ic
+        ||!Number.isFinite(Date.parse(response.result.expires_at)))throw Error('Reveal result not confirmed.');
+      return response.result;
+    }
     if(name==='orl_db_health'){
       const owner=session();if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
       const prepared=await send('PREPARE_CREATE',{});

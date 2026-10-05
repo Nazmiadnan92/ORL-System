@@ -4,8 +4,8 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 
 ## Current database version
 
-- Latest migration applied to production: `048_ic_c2_controlled_legacy_backfill.sql` (guarded installer, fresh private dump and read-only post-install verification reported SUCCESS on 2026-10-05).
-- Package B foundation/synthetic scope is COMPLETE as of 2026-10-01 (Malaysia). Migration 045 installation and key recovery/backup are operator-confirmed. Six secret names are verified present. `ic-readiness` is deployed at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266`; legacy JWT is OFF with custom Webmaster authorization. Live Webmaster crypto checks and missing/unknown/revoked-session denial passed (operator log reviewed). Readiness is DISABLED again, independently verified by HTTP 503. Packages C1 and C2 are complete; authorized Reveal remains Package C3.
+- Latest migration applied to production: `049_ic_c3_authorized_reveal.sql` (guarded installer, fresh private dump and read-only role/privilege postcheck reported SUCCESS on 2026-10-05).
+- Package B foundation/synthetic scope is COMPLETE as of 2026-10-01 (Malaysia). Migration 045 installation and key recovery/backup are operator-confirmed. Six secret names are verified present. `ic-readiness` is deployed at pinned commit `2d63db73d9f744820c441d43de4733ef2a5d4266`; legacy JWT is OFF with custom Webmaster authorization. Live Webmaster crypto checks and missing/unknown/revoked-session denial passed (operator log reviewed). Readiness is DISABLED again, independently verified by HTTP 503. Packages C1, C2 and C3 are complete.
 - Phase 4 installation confirmed by the operator after the guarded installer reported SUCCESS. Restore was NOT executed on production. Production Postpone/Cancel workflow smoke testing remains pending; Phase 1 login was confirmed working by the operator.
 - Phase 5 checked Reassign installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 049; live Reassign smoke testing remains pending.
 - Phase 6 migration 035 installation confirmed by the operator after guarded installer SUCCESS. Matching frontend uses cache version 050. Live Cancel/deletion approval smoke testing remains pending; no real-patient cancellation was performed for testing.
@@ -17,13 +17,14 @@ This directory contains the PostgreSQL migrations used by the ORL OT Management 
 - Migration 043 installation confirmed by the operator after guarded installer SUCCESS on 2026-09-21. Frontend cache 059 separates Main/Special availability in month tabs and daily summaries; Staff sees Main only. Synthetic local database and frontend tests passed. No production patient operation was performed for testing.
 - Package C1 completed on 2026-10-05: corrected read-only preflight, separately held key recovery, verified private full dump, atomic migration 046, recovery-ready postcheck, Edge enable, sanitized missing/random-session denials, shared 30/minute live rate contract, exact-repository cache 073/config 025 publish and operator-confirmed normal login/read-only use. No Restore or test patient mutation was used. Migration 047 then changed display masking only; it did not decrypt, delete or rewrite stored patient IC values.
 - Package C2 completed on 2026-10-05: migration 048 and the C2-capable Edge gateway were installed after a verified private dump. One punctuation-only legacy placeholder was backed up, cleared to the optional blank state and audited without logging its value. All 331 remaining nonblank legacy identities were encrypted in controlled batches and cryptographically reconciled before finalization. A verified full post-C2 private dump was saved. Plaintext IC remains in `orl_requests` pending separately approved Package C6.
+- Package C3 completed on 2026-10-05: migration 049 and the C3-capable Edge gateway were installed after a fresh verified private dump. Admin/Webmaster Reveal requires the current account password and one permitted purpose; each one-record access is generation/version fenced, cryptographically verified, audited without the IC value, and displayed for at most 60 seconds. Staff has no Reveal access. Cache 075 publishes the matching UI. No patient IC was revealed merely for testing and plaintext remains pending Package C6.
 - C1 legacy gates cover thirty-one entry-point names. Protected workflows and masked reads pass after gating; Database Repair is Webmaster/service-only and Restore-generation fenced. Audit/history/free-text output and generated OT lists defensively mask known identifiers. Administrative controls retain patient/identity records and refuse stale metadata snapshots or lock contention. The actual 018 parser is tested with synthetic HTTP responses only; live holiday-fetch accuracy remains an operational check.
-- Next new migration number: `049`.
+- Next new migration number: `050`.
 - Production migrations must be treated as immutable history. Do not rename, reorder or edit migrations that have already been applied.
 
 ## Existing production database
 
-Do **not** run migrations `001` to `048` again on the active database.
+Do **not** run migrations `001` to `049` again on the active database.
 
 Editing or documenting files in this GitHub directory does not change the active Supabase database. A database changes only when SQL is deliberately executed against it.
 
@@ -31,7 +32,7 @@ Editing or documenting files in this GitHub directory does not change the active
 
 For a completely new, empty database only:
 
-1. Run the production SQL files once in exact numerical order. Migration 045 creates the empty IC foundation. Migration 046 additionally requires the reviewed C1 Edge/recovery procedure and must remain OFF until its release runbook prerequisites are satisfied. Migration 047 applies the approved final-six display mask. Migration 048 installs the controlled C2 backfill/reconciliation controls; follow `security/release/C2-RELEASE-RUNBOOK.md` rather than invoking them ad hoc.
+1. Run the production SQL files once in exact numerical order. Migration 045 creates the empty IC foundation. Migration 046 additionally requires the reviewed C1 Edge/recovery procedure and must remain OFF until its release runbook prerequisites are satisfied. Migration 047 applies the approved final-six display mask. Migration 048 installs the controlled C2 backfill/reconciliation controls. Migration 049 installs purpose-bound Reveal leases; follow the matching release runbooks rather than invoking these controls ad hoc.
 2. After migration `003`, create the first Webmaster manually in the private Supabase SQL Editor.
 3. Replace every placeholder in the example below. Never save the completed statement, username or password in GitHub.
 

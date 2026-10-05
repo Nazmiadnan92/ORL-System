@@ -9,6 +9,15 @@ patient mutation. Migration 047 was subsequently installed from a fresh verified
 backup to preserve the first six Malaysian IC digits and mask the final six; cache 074
 contains the matching browser and Excel display policy.
 
+**C2 and C3 production rollout is also complete as of 2026-10-05.** Migration 048
+encrypted and reconciled 331 supported legacy identities, with a verified post-C2 dump.
+Migration 049 and the C3-capable Edge gateway now permit one-record full-IC Reveal only
+to Admin/Webmaster after current-password verification and selection of an approved
+purpose. Access is generation/version fenced, audited without storing the IC in the audit
+entry and auto-hidden by cache 075 within 60 seconds or when the tab is hidden. The
+guarded 049 installer created a fresh verified private dump. No real patient Reveal was
+performed merely for testing, and plaintext remains until separately approved C6.
+
 Local source restore point: `restore/pre-ic-package-c1-20261001` at `2560f05`.
 This is a Git source checkpoint, NOT a database backup or key backup.
 
@@ -351,15 +360,15 @@ has been performed, and C1 remains default-OFF.
 | B | Complete within documented foundation/synthetic scope | Astra : High |
 | C1 | Complete: guarded 046/Edge/frontend activation plus display-only migration 047 | Astra : High |
 | C2 | Complete 2026-10-05: 331 legacy identities encrypted and fully reconciled; post-C2 dump verified | GPT-5.6 Sol : High |
-| C3 | Pending: explicitly authorized Reveal + audit policy | GPT-5.6 Sol : Medium |
+| C3 | Complete 2026-10-05: password/purpose-bound one-record Reveal, value-free audit and 60-second UI expiry | GPT-5.6 Sol : Medium |
 | C4 | Pending: full workflow, recovery-key and restore verification | GPT-5.6 Sol : High |
 | C5 | Pending: observation and minor display fixes | GPT-5.6 Sol : Medium |
 | C6 | Pending: remove plaintext only after reconciliation and approval | GPT-5.6 Sol : High |
 | C7 | Pending: final audit and new backup | GPT-5.6 Sol : High |
 
-Next implementation after completed C2: C3 explicitly authorized Reveal and audit policy.
-C2 completion does not authorize Reveal or plaintext removal; Package C6 remains a
-separate approval gate.
+Next implementation after completed C3: C4 full workflow, recovery-key and Restore
+verification. C3 does not authorize plaintext removal; Package C6 remains a separate
+approval gate.
 
 ## Restore-generation and local legacy-conversion checkpoint
 
