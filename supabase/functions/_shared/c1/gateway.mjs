@@ -1,6 +1,7 @@
 // Disabled-by-default C1 Edge gateway candidate. No deployment or Deno.serve here.
 import { createIcRequestHandler, readPayload } from './handler.mjs';
-import { prepareIdentityChange, verifyIdentityBackup } from './compatibility.mjs';
+import { createIdentityCrypto } from '../ic-crypto.mjs';
+import { prepareIdentityChange, verifyIdentityBackup, prepareC6Backup } from './compatibility.mjs';
 import { convertLegacyBackup } from './legacy-backup.mjs';
 import { validControl, validControlView } from './controls.mjs';
 import { prepareC2Backfill, verifyC2Identities } from './c2-maintenance.mjs';
@@ -72,6 +73,32 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
         return reply(200,{result:{request_id:verified.request_id,patient_ic:verified.patient_ic,
           purpose:committed.purpose,expires_at:committed.expires_at}});
       }catch{return reply(403,{error:'IC reveal was not authorized or confirmed. Nothing is displayed; do not retry blindly.'})}
+    }
+    if(body.operation==='SEARCH'){
+      if(!exact(body,['operation','search'])||typeof body.search!=='string'||body.search.trim().length<2||body.search.length>128)
+        return reply(400,{error:'Enter at least 2 characters to search.'});
+      try{
+        const engine=await createIdentityCrypto(cryptoConfig());
+        const search=await engine.searchHash(body.search.trim());
+        const result=await rpc('orl_ic_c6_find_patient',{p_session_token:token,p_search:body.search.trim(),
+          p_search_key_id:search.key_id,p_search_hash:search.hash});
+        return reply(200,{result});
+      }catch{return reply(503,{error:'Protected patient search unavailable.'})}
+    }
+    if(body.operation==='C6_STATUS'){
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password'])||!password(body.password))return reply(400,{error:'Invalid C6 status request.'});
+      try{return reply(200,{result:await rpc('orl_ic_c6_status',{p_session_token:token,p_password:body.password})})}
+      catch{return reply(503,{error:'C6 status unavailable.'})}
+    }
+    if(body.operation==='C6_CUTOVER'){
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password','generation','run_id'])||!password(body.password)
+        ||![body.generation,body.run_id].every(x=>typeof x==='string'&&uuid.test(x)))
+        return reply(400,{error:'Invalid C6 cutover request.'});
+      try{return reply(200,{result:await rpc('orl_ic_c6_cutover',{p_session_token:token,p_password:body.password,
+        p_generation:body.generation,p_run_id:body.run_id})})}
+      catch{return reply(503,{error:'C6 result is uncertain. Stop and inspect status; do not repeat blindly.'})}
     }
 
     if (body.operation === 'C2_STATUS') {
@@ -377,20 +404,22 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
         try {
           if (await rpc('orl_ic_c1_check_password', { p_session_token: token, p_password: body.password }) !== true) throw new Error('Denied');
         } catch { return reply(403, { error: 'Webmaster verification failed. No restore was started.' }); }
+        try{converted=await prepareC6Backup(converted,cryptoConfig())}
+        catch{return reply(400,{error:'Protected backup conversion failed. Keep the original file.'})}
         return reply(200, { backup: converted });
       }
       if (body.operation === 'BACKUP_EXPORT') {
         try {
           const backup = await rpc('orl_ic_c1_export', { p_session_token: token, p_password: body.password });
           // Do not distribute a new backup with stale/mismatched or unrecoverable shadows.
-          const verified = await verifyIdentityBackup(backup, cryptoConfig());
+          const verified = await prepareC6Backup(backup, cryptoConfig());
           if (!backupWithinRuntimePolicy(verified)) throw new Error('Runtime policy exceeded');
           return reply(200, { backup: verified });
         } catch { return reply(503, { error: 'Backup could not be verified. Keep earlier backups and contact Webmaster.' }); }
       }
       if (body.backup?.version === 1) return reply(400, { error: 'Legacy backup conversion is required. Keep this file; no restore was started.' });
       let verified;
-      try { verified = await verifyIdentityBackup(body.backup, cryptoConfig()); }
+      try { verified = await prepareC6Backup(body.backup, cryptoConfig()); }
       catch { return reply(400, { error: 'Backup identity verification failed. No restore was started.' }); }
       try {
         const result = await rpc('orl_ic_c1_import', { p_session_token: token, p_password: body.password, p_backup: verified });

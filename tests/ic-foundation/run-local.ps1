@@ -66,6 +66,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C3 gateway/reveal tests failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\c3-integration.test.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'C3 migration/lease/audit integration tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c6-gateway.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C6 gateway/backup/search tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c6-integration.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C6 migration/cutover integration tests failed.' }
     & (Join-Path $PSScriptRoot '..\ic-write\preflight-recovery.test.ps1') -Phase Post
     if ($LASTEXITCODE -ne 0) { throw 'C1 post-046 release preflight regression failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\browser.test.mjs')
@@ -94,6 +98,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C5 observation artifact tests failed.' }
     & (Join-Path $orlRepo 'security\release\observe-c5.ps1') -SelfTest
     if ($LASTEXITCODE -ne 0) { throw 'C5 masking observer self-test failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c6-release.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C6 guarded release artifact tests failed.' }
   }
 } finally {
   $env:PGOPTIONS=$orlOldOptions

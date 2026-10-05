@@ -4,6 +4,17 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const fail = () => { throw new Error('Identity verification failed. Nothing submitted.'); };
 
+export function maskIdentityDisplay(value) {
+  if (typeof value !== 'string') return fail();
+  const raw=value.trim();
+  if (!raw) return '';
+  if (/^(?:\d{6}-\*{2}-\*{4}|\*{6}-\*{2}-\d{4}|\*{4,8}[A-Za-z0-9]{4}|\*{4})$/.test(raw)) return raw;
+  const digits=raw.replace(/[^0-9]/g,'');
+  if (/^\d{6}-?\d{2}-?\d{4}$/.test(raw)) return `${digits.slice(0,6)}-**-****`;
+  const compact=raw.replace(/\s/g,'');
+  return compact.length<=4?'****':`********${compact.slice(-4)}`;
+}
+
 // KEEP intentionally omits patient_ic; callers must not send masked values as originals.
 // No record lookup or reveal is introduced. SQL enforces slot/role permission at commit.
 export async function prepareIdentityChange({ mode, data, requestId, cryptoConfig }) {
@@ -30,8 +41,9 @@ export async function prepareIdentityChange({ mode, data, requestId, cryptoConfi
 export async function verifyIdentityBackup(input, cryptoConfig) {
   try {
     const backup = structuredClone(input);
-    if (!object(backup) || backup.format !== 'ORLOMS_BACKUP' || backup.version !== 2
-        || backup.identity_format !== 'ORL_IC_SHADOW_V1'
+    if (!object(backup) || backup.format !== 'ORLOMS_BACKUP' || ![2,3].includes(backup.version)
+        || !['ORL_IC_SHADOW_V1','ORL_IC_ENCRYPTED_V1'].includes(backup.identity_format)
+        || (backup.version===3&&(backup.identity_format!=='ORL_IC_ENCRYPTED_V1'||backup.plaintext_removed!==true))
         || backup.creation_receipt_format !== 'ORL_CREATE_RECEIPTS_V1'
         || !Array.isArray(backup.creation_receipts)
         || !Array.isArray(backup.requests) || !Array.isArray(backup.identities)) return fail();
@@ -51,7 +63,7 @@ export async function verifyIdentityBackup(input, cryptoConfig) {
       if (!r || !r.ic_protected || !r.patient_ic || !object(i.search) || i.search.normalization_version !== 1
           || typeof i.search.key_id !== 'string' || typeof i.search.hash !== 'string') return fail();
       const raw = await engine.decrypt(i.envelope, i.request_id);
-      if (raw !== r.patient_ic) return fail();
+      if (backup.version===2 ? raw !== r.patient_ic : maskIdentityDisplay(raw) !== r.patient_ic) return fail();
       const search = await engine.searchHash(raw, i.search.key_id);
       if (search.hash !== i.search.hash) return fail();
       seen.add(i.request_id);
@@ -70,4 +82,18 @@ export async function verifyIdentityBackup(input, cryptoConfig) {
     for (const r of records.values()) if (r.creation_tracked !== receipts.has(r.id)) return fail();
     return backup;
   } catch { return fail(); }
+}
+
+// Convert a cryptographically verified v2/v3 backup to the C6 format without
+// ever returning the decrypted value. The exact identity remains only in ciphertext.
+export async function prepareC6Backup(input, cryptoConfig) {
+  const backup=await verifyIdentityBackup(input,cryptoConfig);
+  const engine=await createIdentityCrypto(cryptoConfig);
+  const identities=new Map(backup.identities.map(i=>[i.request_id,i]));
+  for(const request of backup.requests){
+    const identity=identities.get(request.id);
+    request.patient_ic=identity?maskIdentityDisplay(await engine.decrypt(identity.envelope,request.id)):'';
+  }
+  backup.version=3;backup.identity_format='ORL_IC_ENCRYPTED_V1';backup.plaintext_removed=true;
+  return backup;
 }

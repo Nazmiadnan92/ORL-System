@@ -5,7 +5,7 @@ export function createIcTransport({ baseUrl, publishableKey, session, fetchImpl 
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Invalid backend URL.');
   const endpoint = new URL('/functions/v1/ic-requests', base);
   return async (operation, payload) => {
-    if (!['REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
+    if (!['SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
     const token = session();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) throw new Error('Please sign in again.');
     let response;
@@ -57,9 +57,10 @@ export function bindProtectedIcField(form, { canEdit, masked = '', document: doc
 }
 
 export function previewBackupVersion(backup) {
-  if (!backup || backup.format !== 'ORLOMS_BACKUP' || ![1, 2].includes(backup.version)) throw new Error('Unsupported backup.');
+  if (!backup || backup.format !== 'ORLOMS_BACKUP' || ![1, 2, 3].includes(backup.version)) throw new Error('Unsupported backup.');
   if (backup.version === 1) return { canRestore: false, message: 'Legacy backup: protected recovery conversion is required. Keep this file.' };
-  if (backup.identity_format !== 'ORL_IC_SHADOW_V1' || !Array.isArray(backup.identities)) throw new Error('Incomplete protected backup.');
+  if (!['ORL_IC_SHADOW_V1','ORL_IC_ENCRYPTED_V1'].includes(backup.identity_format) || !Array.isArray(backup.identities)) throw new Error('Incomplete protected backup.');
+  if(backup.version===3&&backup.plaintext_removed!==true)throw new Error('Incomplete C6 backup.');
   if (backup.creation_receipt_format !== 'ORL_CREATE_RECEIPTS_V1' || !Array.isArray(backup.creation_receipts))
     throw new Error('Backup needs creation-recovery conversion. Keep this file.');
   for (const section of ['requests', 'users', 'settings', 'holidays', 'ot_sessions', 'ot_slots', 'audit_log'])
@@ -179,6 +180,12 @@ export function createIcRpcRouter({ send, legacy, session, creation }) {
     orl_delete_holiday:'HOLIDAY_DELETE',orl_generate_public_holidays:'HOLIDAY_GENERATE',orl_clear_all_holidays:'HOLIDAY_CLEAR',orl_save_settings:'SETTINGS'};
   const issued=new WeakSet(),used=new WeakSet();
   return async (name, args = {}) => {
+    if(name==='orl_find_patient_search'){
+      const owner=session();if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      const response=await send('SEARCH',{search:args.p_search});
+      if(session()!==owner||!Array.isArray(response?.result))throw Error('Patient search result not confirmed.');
+      return response.result;
+    }
     if(name==='orl_ic_reveal'){
       const owner=session();
       if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
