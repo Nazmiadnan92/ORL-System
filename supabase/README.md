@@ -133,7 +133,13 @@ This repository may be public. SQL files must never contain real patient informa
 
 ## Full-IC OT Excel export (053)
 
-Implementation and synthetic tests are ready; production activation is pending.
+Production migration, Edge deployment and website publication verified on
+2026-10-06 (Asia/Kuala_Lumpur). Release commit: 69dfaa3; restore tag:
+restore/pre-ot-export-20261006. Migration 053 report confirms all nine checks,
+zero plaintext rows and zero identity mismatches; its private backup hash matches.
+All 12 deployed Edge source files match the reviewed code (ic-requests version 8).
+GitHub Pages run 37358412709 completed successfully; seven published assets,
+including the unchanged workbook template, match the local release.
 Existing Generate/Print stays Admin/Webmaster only and requires the current website
 password and clinical-use acknowledgment. The server selects the OT-date patient
 list, verifies encrypted identities and commits an OT_LIST_FULL_IC_GENERATED audit
@@ -149,10 +155,18 @@ Release order: run security/release/Pasang-OT-Export.cmd, privately enter the
 database password, then confirm INSTALL 053 after its fresh full backup.
 The same window verifies the exact project and prompts DEPLOY OT EXPORT EDGE.
 Inspect the sanitized ORL-053 report in the private backup folder before publishing
-app/client 078 and ot-excel 067. Stop on failure; do not blindly reinstall.
+app/client 078 and ot-excel 067. This release sequence is now completed; do not
+rerun the installer. Stop on failure; do not blindly reinstall.
 The older website remains compatible with the additive backend.
 
 Verification: 70 focused browser/gateway/release tests and four isolated database
 integration suites passed, including migration 053. Synthetic workbook checks
 cover 1, 3 and 8 rows; role/password denial, stale data, expired/replayed leases,
 changed login, audit failure, blank IC, and no full IC in the schedule cache.
+
+Live checks also confirmed missing/invalid sessions are denied, both direct
+export RPCs reject public callers, and the published login page loads the
+audited export implementation with no script errors. No real-patient export or
+clinical mutation was performed during verification. Operator acceptance:
+generate an authorized OT list and confirm its OT_LIST_FULL_IC_GENERATED entry
+in Audit Log; keep the full-IC workbook private.
