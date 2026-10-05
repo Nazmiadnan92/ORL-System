@@ -1,4 +1,12 @@
-# C7 final audit — database and recovery passed; website observation pending
+# C7 final audit — completed 2026-10-06
+
+Final gate passed: operator reported SUCCESS and the private sanitized website
+observation report was independently read. At 2026-10-05T17:46:11.6231655Z,
+the WEBMASTER observation confirmed live assets, Edge denials, core reads and
+156 masked identity fields. Patient mutations and reveal operations were zero;
+the temporary login session was logged out. Together with the verified 052
+installation and 331-identity isolated recovery below, all C7 gates are complete.
+No further installation or verification rerun is required for this release.
 
 Scope: IC access controls, post-C6 workflows and recovery of the application schemas.
 This is not independent IT approval, a penetration test, or proof against all breaches.
@@ -79,15 +87,15 @@ zero structured plaintext IC rows and zero identity mismatches. Live and restore
 security checks passed, restored sessions were invalidated, and temporary local
 restore files were removed. No production Restore was performed.
 
-Remaining gate: live website observation. The site still served cache 076 while
+Earlier publication blocker (resolved): the site still served cache 076 while
 main contained 077; GitHub Actions had no build for commit 2f3f105. A Pages build
 was explicitly requested using the existing authorized GitHub credential and
 returned queued. The configured source remains main /docs; no hosting settings
-were changed. Use Semak-C7-Website.cmd after publication, NOT the full C7 installer
-or recovery runner. C7 is not closed until the authenticated live observation passes.
+were changed. The website-only runner was used after publication; the installer
+and successful recovery were not repeated.
 
 Publication follow-up: GitHub Pages run 37350619421 completed successfully for
 2f3f105. The independent observe-c7.ps1 -PublicOnly check then passed: cache 077
 and clinical 062 assets are live, protection is enabled, and missing/random
-session requests are denied with safe headers. Only authenticated live observation
-remains; Semak-C7-Website.cmd requests WEBSITE credentials only.
+session requests are denied with safe headers. The final authenticated observation
+subsequently passed as recorded above.
