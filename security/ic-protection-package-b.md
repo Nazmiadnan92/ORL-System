@@ -180,12 +180,12 @@ Supabase Edge Runtime and production configuration still need their own verifica
 | B3 | Add private storage without deleting original IC | Astra : High |
 | B4 | Synthetic encryption/decryption/search tests | Astra : High |
 | C1 | New-record encryption | Astra : High |
-| C2 | Controlled legacy IC backfill | Astra : High |
-| C3 | Authorized Reveal IC and audit | Sol : Medium |
-| C4 | Full workflow and backup/restore validation | Astra : High |
-| C5 | Observation and small display fixes | Sol : Medium |
-| C6 | Remove plaintext after verification | Astra : High |
-| C7 | Final security audit and new backup | Astra : High |
+| C2 | Complete: controlled legacy IC backfill | GPT-5.6 Sol : High |
+| C3 | Authorized Reveal IC and audit | GPT-5.6 Sol : Medium |
+| C4 | Full workflow and backup/restore validation | GPT-5.6 Sol : High |
+| C5 | Observation and small display fixes | GPT-5.6 Sol : Medium |
+| C6 | Remove plaintext after verification | GPT-5.6 Sol : High |
+| C7 | Final security audit and new backup | GPT-5.6 Sol : High |
 
 ## References
 

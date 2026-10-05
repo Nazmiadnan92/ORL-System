@@ -350,16 +350,16 @@ has been performed, and C1 remains default-OFF.
 | A | Complete: backup and display masking only | Sol : Medium |
 | B | Complete within documented foundation/synthetic scope | Astra : High |
 | C1 | Complete: guarded 046/Edge/frontend activation plus display-only migration 047 | Astra : High |
-| C2 | Pending: reconcile/encrypt legacy ICs in controlled batches | Astra : High |
-| C3 | Pending: explicitly authorized Reveal + audit policy | Sol : Medium |
-| C4 | Pending: full workflow, recovery-key and restore verification | Astra : High |
-| C5 | Pending: observation and minor display fixes | Sol : Medium |
-| C6 | Pending: remove plaintext only after reconciliation and approval | Astra : High |
-| C7 | Pending: final audit and new backup | Astra : High |
+| C2 | Complete 2026-10-05: 331 legacy identities encrypted and fully reconciled; post-C2 dump verified | GPT-5.6 Sol : High |
+| C3 | Pending: explicitly authorized Reveal + audit policy | GPT-5.6 Sol : Medium |
+| C4 | Pending: full workflow, recovery-key and restore verification | GPT-5.6 Sol : High |
+| C5 | Pending: observation and minor display fixes | GPT-5.6 Sol : Medium |
+| C6 | Pending: remove plaintext only after reconciliation and approval | GPT-5.6 Sol : High |
+| C7 | Pending: final audit and new backup | GPT-5.6 Sol : High |
 
-Next implementation after C1: C2 controlled reconciliation and encryption of legacy ICs.
-Its four steps must remain separately gated; C1 completion does not authorize bulk
-backfill or plaintext removal.
+Next implementation after completed C2: C3 explicitly authorized Reveal and audit policy.
+C2 completion does not authorize Reveal or plaintext removal; Package C6 remains a
+separate approval gate.
 
 ## Restore-generation and local legacy-conversion checkpoint
 

@@ -24,6 +24,16 @@ used for activation.
 | 14 | Guarded migration/deployment/cache/backup/rollback preparation | Complete locally: generated/hash-pinned 046, real shared PostgreSQL rate store and Edge entrypoint, cache 073/config 025 default-OFF, guarded private-backup installer, preflight and recovery runbook; actual disposable 046 install/reinstall refusal plus 207-test runner passed, 2026-10-04 |
 | 15 | Separately approved controlled installation and activation | Complete, 2026-10-05: preflight/key recovery, verified private dump, atomic 046, recovery postcheck, exact-project Edge enable, sanitized public smoke and 30/minute rate smoke passed. Cache 073/config 025 was published at `9a70640`; the operator confirmed normal live login/read-only use. Migration 047 was then installed from a fresh verified backup to display Malaysian IC as first six digits plus `**-****`; cache 074 publishes the matching defensive browser/Excel mask. |
 
-Remaining later packages: C2 legacy IC encryption (4 steps), C3 Reveal (3), C4 end-to-end
-verification (4), C5 observation (2), C6 plaintext cutover/removal (4), C7 final audit and
-backup (3). Full technical evidence and limits: `ic-protection-package-c.md`.
+## C2: 4/4 steps complete
+
+| Step | Scope | Status |
+| --- | --- | --- |
+| 1 | Inventory and guarded migration 048 | Complete, 2026-10-05: exact-project preflight, fresh verified private dump, atomic install and private privilege postcheck passed |
+| 2 | Controlled encryption backfill | Complete: one punctuation-only placeholder was backed up/cleared to optional blank; all 331 supported nonblank identities were encrypted in batches of at most 40 |
+| 3 | Complete cryptographic reconciliation | Complete: every encrypted identity was decrypted and exactly compared with its source plus keyed search hash; version/current-generation receipts covered all 331 rows before finalization |
+| 4 | Production completion and recovery copy | Complete: C2 finalization was recorded, plaintext was retained for C6, and a verified full post-C2 private dump was saved |
+
+Remaining later packages: C3 Reveal (3 steps), C4 end-to-end verification (4), C5
+observation (2), C6 plaintext cutover/removal (4), and C7 final audit/backup (3).
+Per the current model-cost preference: use GPT-5.6 Sol Medium for C3/C5 and GPT-5.6
+Sol High for C4/C6/C7. Full technical evidence and limits: `ic-protection-package-c.md`.

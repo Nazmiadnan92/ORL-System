@@ -58,6 +58,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'C1 synthetic creation tests failed.' }
     & (Join-Path $PSScriptRoot '..\ic-write\migration-047.test.ps1')
     if ($LASTEXITCODE -ne 0) { throw 'Migration 047 display-mask regression failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c2-gateway.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C2 Edge encryption/reconciliation tests failed.' }
+    & node --test (Join-Path $PSScriptRoot '..\ic-write\c2-integration.test.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'C2 migration/backfill integration tests failed.' }
     & (Join-Path $PSScriptRoot '..\ic-write\preflight-recovery.test.ps1') -Phase Post
     if ($LASTEXITCODE -ne 0) { throw 'C1 post-046 release preflight regression failed.' }
     & node --test (Join-Path $PSScriptRoot '..\ic-write\browser.test.mjs')

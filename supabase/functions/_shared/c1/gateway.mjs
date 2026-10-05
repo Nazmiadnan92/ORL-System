@@ -3,6 +3,7 @@ import { createIcRequestHandler, readPayload } from './handler.mjs';
 import { prepareIdentityChange, verifyIdentityBackup } from './compatibility.mjs';
 import { convertLegacyBackup } from './legacy-backup.mjs';
 import { validControl, validControlView } from './controls.mjs';
+import { prepareC2Backfill, verifyC2Identities } from './c2-maintenance.mjs';
 import { C1_BACKUP_BODY_BYTES, C1_RATE_MAX_REQUESTS, C1_RATE_WINDOW_SECONDS, C1_SMALL_BODY_BYTES, backupWithinRuntimePolicy } from './runtime-policy.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
@@ -50,6 +51,71 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
       if (!object(body) || typeof body.operation !== 'string') throw new Error('Invalid');
       if (!['BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(body.operation) && JSON.stringify(body).length > C1_SMALL_BODY_BYTES) throw new Error('Invalid');
     } catch { return reply(400, { error: 'Invalid or oversized protected request.' }); }
+
+    if (body.operation === 'C2_STATUS') {
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password'])||!password(body.password))return reply(400,{error:'Invalid C2 status request.'});
+      try{
+        const result=await rpc('orl_ic_c2_status',{p_session_token:token,p_password:body.password});
+        if(!uuid.test(result?.generation||'')||!/^[a-f0-9]{32}$/.test(result?.revision||''))throw Error('Invalid');
+        return reply(200,{result});
+      }catch{return reply(503,{error:'Unable to confirm C2 status. Nothing was changed.'})}
+    }
+    if (body.operation === 'C2_BACKFILL') {
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password','generation','revision'])||!password(body.password)
+        ||!uuid.test(body.generation||'')||!/^[a-f0-9]{32}$/.test(body.revision||''))return reply(400,{error:'Reload C2 status.'});
+      try{
+        const batch=await rpc('orl_ic_c2_backfill_view',{p_session_token:token,p_password:body.password,
+          p_generation:body.generation,p_revision:body.revision});
+        if(batch?.generation!==body.generation||batch?.revision!==body.revision||!Array.isArray(batch?.items))throw Error('Invalid');
+        if(batch.items.length===0)return reply(200,{result:{generation:body.generation,revision:body.revision,committed:0}});
+        const items=await prepareC2Backfill(batch.items,cryptoConfig());
+        const result=await rpc('orl_ic_c2_backfill_commit',{p_session_token:token,p_password:body.password,
+          p_generation:body.generation,p_revision:body.revision,p_items:items});
+        if(!Number.isSafeInteger(result?.committed)||result.committed!==items.length
+          ||!uuid.test(result?.generation||'')||!/^[a-f0-9]{32}$/.test(result?.revision||''))throw Error('Invalid');
+        return reply(200,{result});
+      }catch{return reply(503,{error:'C2 batch result not confirmed. Reload status before continuing; do not repeat blindly.'})}
+    }
+    if (body.operation === 'C2_VERIFY_START') {
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password','generation','revision'])||!password(body.password)
+        ||!uuid.test(body.generation||'')||!/^[a-f0-9]{32}$/.test(body.revision||''))return reply(400,{error:'Reload C2 status.'});
+      try{
+        const result=await rpc('orl_ic_c2_verify_start',{p_session_token:token,p_password:body.password,
+          p_generation:body.generation,p_revision:body.revision});
+        if(!uuid.test(result?.run_id||'')||result?.generation!==body.generation||!Number.isSafeInteger(result?.remaining))throw Error('Invalid');
+        return reply(200,{result});
+      }catch{return reply(503,{error:'C2 verification could not be started. Reload status before continuing.'})}
+    }
+    if (body.operation === 'C2_VERIFY') {
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password','generation','run_id'])||!password(body.password)
+        ||!uuid.test(body.generation||'')||!uuid.test(body.run_id||''))return reply(400,{error:'Invalid C2 verification request.'});
+      try{
+        const batch=await rpc('orl_ic_c2_verify_view',{p_session_token:token,p_password:body.password,
+          p_generation:body.generation,p_run_id:body.run_id});
+        if(batch?.run_id!==body.run_id||batch?.generation!==body.generation||!Array.isArray(batch?.items))throw Error('Invalid');
+        if(batch.items.length===0)return reply(200,{result:{run_id:body.run_id,generation:body.generation,remaining:0}});
+        const items=await verifyC2Identities(batch.items,cryptoConfig());
+        const result=await rpc('orl_ic_c2_verify_commit',{p_session_token:token,p_password:body.password,
+          p_generation:body.generation,p_run_id:body.run_id,p_items:items});
+        if(result?.run_id!==body.run_id||result?.generation!==body.generation||!Number.isSafeInteger(result?.remaining))throw Error('Invalid');
+        return reply(200,{result});
+      }catch{return reply(503,{error:'C2 verification result not confirmed. Stop and inspect before continuing; do not repeat blindly.'})}
+    }
+    if (body.operation === 'C2_FINALIZE') {
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password','generation','run_id'])||!password(body.password)
+        ||!uuid.test(body.generation||'')||!uuid.test(body.run_id||''))return reply(400,{error:'Invalid C2 completion request.'});
+      try{
+        const result=await rpc('orl_ic_c2_finalize',{p_session_token:token,p_password:body.password,
+          p_generation:body.generation,p_run_id:body.run_id});
+        if(result?.status!=='COMPLETED'||result?.run_id!==body.run_id||!Number.isSafeInteger(result?.verified))throw Error('Invalid');
+        return reply(200,{result});
+      }catch{return reply(503,{error:'C2 completion was not confirmed. Reload status and inspect before retrying.'})}
+    }
 
     if (body.operation === 'CONTROL_VIEW') {
       if(!validControlView(body))return reply(400,{error:'Invalid control view.'});
