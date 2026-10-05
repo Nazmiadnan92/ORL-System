@@ -1,3 +1,4 @@
+param([switch]$WithOtExport)
 $ErrorActionPreference='Stop'
 $orlBin='C:\Program Files\PostgreSQL\18\bin'
 $orlRepo=(Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -37,6 +38,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   foreach($suite in @('c2-integration.test.mjs','c3-integration.test.mjs','c6-integration.test.mjs')){
     & node --test (Join-Path $PSScriptRoot $suite)
     if($LASTEXITCODE-ne 0){throw "C7 integration failed: $suite"}
+  }
+  if($WithOtExport){
+    & node --test (Join-Path $PSScriptRoot 'ot-export-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'OT export integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

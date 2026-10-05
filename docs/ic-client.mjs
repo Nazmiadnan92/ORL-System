@@ -5,7 +5,7 @@ export function createIcTransport({ baseUrl, publishableKey, session, fetchImpl 
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Invalid backend URL.');
   const endpoint = new URL('/functions/v1/ic-requests', base);
   return async (operation, payload) => {
-    if (!['SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
+    if (!['OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
     const token = session();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) throw new Error('Please sign in again.');
     let response;
@@ -185,6 +185,23 @@ export function createIcRpcRouter({ send, legacy, session, creation }) {
       const response=await send('SEARCH',{search:args.p_search});
       if(session()!==owner||!Array.isArray(response?.result))throw Error('Patient search result not confirmed.');
       return response.result;
+    }
+    if(name==='orl_ic_ot_export'){
+      const owner=session();
+      if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      if(!generationUuid(args.p_session_id)||!generationUuid(args.p_generation)
+        ||typeof args.p_password!=='string'||!args.p_password||args.p_password.length>1024)
+        throw Error('Reload the schedule and reopen Generate OT List.');
+      const response=await send('OT_EXPORT',{password:args.p_password,session_id:args.p_session_id,generation:args.p_generation});
+      const result=response?.result;
+      if(session()!==owner||result?.session?.session_id!==args.p_session_id||result?.generation!==args.p_generation
+        ||!generationUuid(result?.export_id)||!Array.isArray(result?.patients)||!result.patients.length||result.patients.length>200
+        ||!Number.isFinite(Date.parse(result?.expires_at))||Date.parse(result.expires_at)<=Date.now()
+        ||!/^\d{4}-\d{2}-\d{2}$/.test(result.session.ot_date||'')
+        ||result.patients.some(p=>!generationUuid(p?.request_id)||typeof p.patient_ic!=='string')
+        ||new Set(result.patients.map(p=>p.request_id)).size!==result.patients.length)
+        throw Error('OT export result not confirmed. Check Audit Log before trying again.');
+      return result;
     }
     if(name==='orl_ic_reveal'){
       const owner=session();

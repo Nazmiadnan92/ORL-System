@@ -6,6 +6,7 @@ import { convertLegacyBackup } from './legacy-backup.mjs';
 import { validControl, validControlView } from './controls.mjs';
 import { prepareC2Backfill, verifyC2Identities } from './c2-maintenance.mjs';
 import { verifyC3Reveal } from './c3-reveal.mjs';
+import { verifyOtExport } from './ot-export.mjs';
 import { C1_BACKUP_BODY_BYTES, C1_RATE_MAX_REQUESTS, C1_RATE_WINDOW_SECONDS, C1_SMALL_BODY_BYTES, backupWithinRuntimePolicy } from './runtime-policy.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
@@ -55,6 +56,24 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
       if (!['BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(body.operation) && JSON.stringify(body).length > C1_SMALL_BODY_BYTES) throw new Error('Invalid');
     } catch { return reply(400, { error: 'Invalid or oversized protected request.' }); }
 
+    if(body.operation==='OT_EXPORT'){
+      if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
+      if(!exact(body,['operation','password','session_id','generation'])||!password(body.password)
+        ||!uuid.test(body.session_id||'')||!uuid.test(body.generation||''))
+        return reply(400,{error:'Invalid OT export request.'});
+      try{
+        const view=await rpc('orl_ic_ot_export_view',{p_session_token:token,p_password:body.password,
+          p_ot_session_id:body.session_id,p_generation:body.generation});
+        const verified=await verifyOtExport(view,cryptoConfig(),body.session_id,body.generation);
+        const receipt=await rpc('orl_ic_ot_export_commit',{p_session_token:token,p_password:body.password,
+          p_lease_id:verified.lease_id,p_ot_session_id:body.session_id,p_generation:body.generation});
+        if(receipt?.lease_id!==verified.lease_id||receipt?.generation!==body.generation
+          ||receipt?.session_id!==body.session_id||receipt?.patient_count!==verified.patients.length
+          ||!timestamp(receipt.expires_at)||Date.parse(receipt.expires_at)<=Date.now())throw Error('Invalid');
+        return reply(200,{result:{session:verified.session,patients:verified.patients,
+          export_id:verified.lease_id,generation:body.generation,expires_at:receipt.expires_at}});
+      }catch{return reply(403,{error:'OT export was not authorized or confirmed. Reopen and review; do not retry blindly.'})}
+    }
     if(body.operation==='REVEAL'){
       if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
       if(!exact(body,['operation','password','request_id','purpose','generation'])||!password(body.password)

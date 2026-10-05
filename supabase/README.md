@@ -130,3 +130,29 @@ The `.orlbackup` export contains operational information including patient reque
 ## Repository security
 
 This repository may be public. SQL files must never contain real patient information, production credentials, API service keys or completed backup files.
+
+## Full-IC OT Excel export (053)
+
+Implementation and synthetic tests are ready; production activation is pending.
+Existing Generate/Print stays Admin/Webmaster only and requires the current website
+password and clinical-use acknowledgment. The server selects the OT-date patient
+list, verifies encrypted identities and commits an OT_LIST_FULL_IC_GENERATED audit
+before releasing full IC. The audit contains actor, role, server time, OT date,
+patient count and export reference, not IC values. It records authorized release,
+not proof of a completed download or physical printing.
+
+Ordinary schedule views remain masked. No patient fields or keys are changed.
+Excel layout is unchanged, with one row per patient. Saved full-IC files are
+sensitive and must be stored and shared securely.
+
+Release order: run security/release/Pasang-OT-Export.cmd, privately enter the
+database password, then confirm INSTALL 053 after its fresh full backup.
+The same window verifies the exact project and prompts DEPLOY OT EXPORT EDGE.
+Inspect the sanitized ORL-053 report in the private backup folder before publishing
+app/client 078 and ot-excel 067. Stop on failure; do not blindly reinstall.
+The older website remains compatible with the additive backend.
+
+Verification: 70 focused browser/gateway/release tests and four isolated database
+integration suites passed, including migration 053. Synthetic workbook checks
+cover 1, 3 and 8 rows; role/password denial, stale data, expired/replayed leases,
+changed login, audit failure, blank IC, and no full IC in the schedule cache.

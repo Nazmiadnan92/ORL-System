@@ -1,4 +1,4 @@
-// Populate the approved blank workbook locally. No patient data leaves the browser.
+// Populate the approved workbook locally from a server-authorized, audited snapshot.
 async function readOtTemplate(buffer){
  const bytes=new Uint8Array(buffer),v=new DataView(buffer),decode=new TextDecoder();let end=bytes.length-22;
  while(end>=0&&v.getUint32(end,true)!==0x06054b50)end--;
@@ -14,7 +14,7 @@ async function readOtTemplate(buffer){
   pos+=46+len+extra+comment;
  }return entries;
 }
-async function buildOtExcel(buffer,session,patients){
+async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const entries=await readOtTemplate(buffer),ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',decoder=new TextDecoder(),parser=new DOMParser(),serializer=new XMLSerializer();
  const parse=name=>{const doc=parser.parseFromString(decoder.decode(entries[name]),'application/xml');if(doc.querySelector('parsererror'))throw new Error('Invalid template XML.');return doc};
  const sheet=parse('xl/worksheets/sheet1.xml'),book=parse('xl/workbook.xml'),rows=sheet.getElementsByTagNameNS(ns,'sheetData')[0];
@@ -31,7 +31,7 @@ async function buildOtExcel(buffer,session,patients){
   all(sheet,'dimension').forEach(d=>d.setAttribute('ref',shiftRef(d.getAttribute('ref'),extra)));
  }
  const dateRow=all(rows,'row').find(r=>r.getAttribute('r')==='4');for(const col of ['C','D','E','F','G','H'])setCell(dateRow,col,col==='C'?'TARIKH: '+formatOtDocumentDate(session.ot_date)+'.':'');
- patients.forEach((p,i)=>{const r=all(rows,'row').find(r=>Number(r.getAttribute('r'))===9+i),values=[i+1,[patientNameCase(p.patient_name),maskPatientIc(p.patient_ic),clinicalUpper(p.mrn)].filter(Boolean).join('\n'),patientAgeText(p,session.ot_date,true),'',clinicalUpper(p.diagnosis),clinicalUpper(p.surgery),'','','',p.sub_specialty];values.forEach((v,j)=>setCell(r,String.fromCharCode(65+j),v));const widths=[5,25,8,13,29,28,21,17,17,11];const lines=Math.max(...values.map((v,j)=>String(v??'').split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/(widths[j]-2))),0)));r.setAttribute('ht',Math.max(60,lines*13+8));r.setAttribute('customHeight','1')});
+ patients.forEach((p,i)=>{const r=all(rows,'row').find(r=>Number(r.getAttribute('r'))===9+i),values=[i+1,[patientNameCase(p.patient_name),fullIc?String(p.patient_ic??''):maskPatientIc(p.patient_ic),clinicalUpper(p.mrn)].filter(Boolean).join('\n'),patientAgeText(p,session.ot_date,true),'',clinicalUpper(p.diagnosis),clinicalUpper(p.surgery),'','','',p.sub_specialty];values.forEach((v,j)=>setCell(r,String.fromCharCode(65+j),v));const widths=[5,25,8,13,29,28,21,17,17,11];const lines=Math.max(...values.map((v,j)=>String(v??'').split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/(widths[j]-2))),0)));r.setAttribute('ht',Math.max(60,lines*13+8));r.setAttribute('customHeight','1')});
  all(book,'definedName').filter(n=>n.getAttribute('name')==='_xlnm.Print_Area').forEach(n=>n.textContent="'OT List'!$A$1:$J$"+(20+extra));
  // Allow tall lists to flow down pages rather than shrinking text to one page.
  all(sheet,'pageSetup').forEach(p=>{p.setAttribute('fitToWidth','1');p.setAttribute('fitToHeight','0')});
@@ -39,10 +39,43 @@ async function buildOtExcel(buffer,session,patients){
  entries['xl/worksheets/sheet1.xml']=serializer.serializeToString(sheet);entries['xl/workbook.xml']=serializer.serializeToString(book);
  return new Blob([createDocxBlob(entries)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
+let otExportBusy=false;
 async function generateOtList(sessionId){
  if(!['ADMIN','WEBMASTER'].includes(user?.role)){toast('Only Admin or Webmaster can generate the OT list.');return}
+ if(otExportBusy){toast('An OT list is already being prepared.');return}
+ if(!protectedIcEnabled()){toast('Protected OT export is unavailable. Contact Webmaster.');return}
  const session=(window._schedule||[]).find(s=>s.session_id===sessionId);if(!session){toast('OT date could not be found.');return}
  const patients=session.slots.filter(s=>s.patient_name&&s.request_status!=='CANCELLED'&&!['AVAILABLE','CLOSED'].includes(s.status));
  if(!patients.length){toast('No scheduled patients are available for this OT list.');return}
- try{toast('Preparing Excel OT list…');const response=await fetch('assets/ot-list-template.xlsx?v=066');if(!response.ok)throw new Error('Unable to load Excel template.');const blob=await buildOtExcel(await response.arrayBuffer(),session,patients),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='OT-List-'+formatSystemDate(session.ot_date)+'.xlsx';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Excel OT list downloaded.');}catch(e){toast('Could not generate Excel OT list: '+e.message)}
+ const owner=token,generation=session._ic_generation;
+ modal(`<h2>Generate OT List</h2><p>OT date: ${esc(formatSystemDate(session.ot_date))}</p><div class="security-warning">The Excel file will contain full IC / Passport numbers. Store it securely and share only with authorized clinical staff. Your name, role, time, OT date and patient count will be recorded in Audit Log.</div><form id="otExportForm"><div class="field"><label>Your Current Website Password<input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label></div><label class="confirm-check"><input type="checkbox" required> I am authorized to generate this OT list for clinical use.</label><div class="actions"><button class="primary" type="submit">Generate Excel</button><button type="button" class="secondary" onclick="closeModal()">Cancel</button></div></form>`);
+ const form=$('#otExportForm');
+ form.onsubmit=async event=>{
+  event.preventDefault();if(otExportBusy)return;
+  const button=form.querySelector('[type="submit"]'),data={password:form.elements.password.value};
+  form.elements.password.value='';button.disabled=true;button.textContent='Preparing…';otExportBusy=true;
+  let result=null,abandoned=false;
+  const onVisibility=()=>{if(document.hidden)abandoned=true};
+  document.addEventListener('visibilitychange',onVisibility);
+  const stillActive=()=>{if(abandoned||document.hidden||!form.isConnected||token!==owner||!['ADMIN','WEBMASTER'].includes(user?.role))throw Error('Export cancelled. Reopen Generate OT List when ready.')};
+  try{
+   stillActive();
+   const response=await fetch('assets/ot-list-template.xlsx?v=066',{cache:'no-store'});
+   if(!response.ok)throw Error('Unable to load Excel template.');
+   const template=await response.arrayBuffer();stillActive();
+   result=await rpc('orl_ic_ot_export',{p_session_token:owner,p_password:data.password,p_session_id:sessionId,p_generation:generation});
+   data.password='';stillActive();
+   const blob=await buildOtExcel(template,result.session,result.patients,{fullIc:true});
+   stillActive();if(Date.parse(result.expires_at)<=Date.now())throw Error('Export expired. Reopen and review.');
+   const url=URL.createObjectURL(blob),link=document.createElement('a');
+   try{link.href=url;link.download='OT-List-'+formatSystemDate(result.session.ot_date)+'.xlsx';document.body.append(link);link.click()}
+   finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+   closeModal();toast('Excel download started. Generation recorded in Audit Log.');
+  }catch(error){if(token===owner)toast(error.message)}
+  finally{
+   data.password='';if(result){for(const p of result.patients)p.patient_ic='';result=null}
+   document.removeEventListener('visibilitychange',onVisibility);otExportBusy=false;
+   if(form.isConnected){button.disabled=false;button.textContent='Generate Excel'}
+  }
+ };
 }

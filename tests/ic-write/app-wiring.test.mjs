@@ -22,7 +22,7 @@ test('actual Database Repair submits only the captured health context and consum
   await ctx.dbRepair();assert.equal(calls.length,2);assert.ok(messages.some(x=>/Reload Database Health/.test(x)));
 });
 
-test('active generated OT list defensively masks IC and never formats a full identifier',()=>{
+test('legacy DOCX fallback defensively masks IC and never formats a full identifier',()=>{
   const start=app.lastIndexOf('async function generateOtList('),end=app.indexOf('\nfunction ',start+1),source=app.slice(start,end);
   assert.match(source,/maskPatientIc\(slot\.patient_ic\)/);
   assert.doesNotMatch(source,/formatPatientIc\(slot\.patient_ic\)/);

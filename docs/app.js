@@ -13,7 +13,7 @@ async function legacyRpc(name,args={}){const r=await fetch(`${cfg.supabaseUrl}/r
 let protectedIcClientPromise;
 function protectedIcEnabled(){return cfg.icProtectionEnabled===true}
 function protectedIcClient(){
-  if(!protectedIcClientPromise)protectedIcClientPromise=import('./ic-client.mjs?v=077').then(module=>{
+  if(!protectedIcClientPromise)protectedIcClientPromise=import('./ic-client.mjs?v=078').then(module=>{
     const send=module.createIcTransport({baseUrl:cfg.supabaseUrl,publishableKey:cfg.supabaseAnonKey,session:()=>token});
     let owner,manager;
     const getManager=()=>{
