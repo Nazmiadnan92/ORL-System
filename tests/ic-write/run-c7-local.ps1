@@ -1,4 +1,7 @@
-param([switch]$WithOtExport)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance)
+if($WithMaintenance){$WithPostponeVersion=$true}
+if($WithPostponeVersion){$WithSessionHelperGuard=$true}
+if($WithSessionHelperGuard){$WithOtExport=$true}
 $ErrorActionPreference='Stop'
 $orlBin='C:\Program Files\PostgreSQL\18\bin'
 $orlRepo=(Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -17,6 +20,11 @@ try{
   if($orlLauncher.ExitCode-ne 0){& "$orlBin\pg_ctl.exe" -D $orlData status|Out-Null;if($LASTEXITCODE-ne0){throw 'C7 database start failed.'}};$orlStarted=$true
   $orlArgs=@('-X','-h','127.0.0.1','-p',$orlPort,'-U','orl_test_owner','-d','postgres','-v','ON_ERROR_STOP=1')
   & "$orlBin\psql.exe" @orlArgs -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA extensions; CREATE EXTENSION pgcrypto WITH SCHEMA extensions;'|Out-Null
+  if($WithSessionHelperGuard){
+    # Model explicit public-schema client grants, not only PostgreSQL PUBLIC.
+    & "$orlBin\psql.exe" @orlArgs -c 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon,authenticated,service_role;'|Out-Null
+    if($LASTEXITCODE-ne0){throw 'Synthetic Supabase-style function grants failed.'}
+  }
   foreach($orlMigration in (Get-ChildItem (Join-Path $orlRepo 'supabase\*.sql')|Where-Object{$_.Name-match '^0(0[1-9]|[1-3][0-9]|4[0-7])_'}|Sort-Object Name)){
     if($orlMigration.Name -like '018_*'){
       $orlFixture=@'
@@ -39,9 +47,23 @@ create function extensions.http_get(varchar) returns extensions.http_response la
     & node --test (Join-Path $PSScriptRoot $suite)
     if($LASTEXITCODE-ne 0){throw "C7 integration failed: $suite"}
   }
+  if($WithSessionHelperGuard){
+    & node --test (Join-Path $PSScriptRoot 'session-helper-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Session helper lockdown integration failed.'}
+  }
   if($WithOtExport){
     & node --test (Join-Path $PSScriptRoot 'ot-export-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'OT export integration failed.'}
+  }
+  if($WithPostponeVersion){
+    & node --test (Join-Path $PSScriptRoot 'postpone-version-release.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Postpone release safety tests failed.'}
+    & node --test (Join-Path $PSScriptRoot 'postpone-version-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Postpone record-version integration failed.'}
+  }
+  if($WithMaintenance){
+    & node --test (Join-Path $PSScriptRoot 'maintenance-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Maintenance integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

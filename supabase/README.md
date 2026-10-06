@@ -180,3 +180,138 @@ adapter and verifies Admin/Webmaster success, Staff denial, audit-failure
 non-disclosure and rejection of unreviewed RPCs after the fix. All 71 focused
 tests pass. Edge version 9 was deployed and its 12 source files verified.
 Real-patient download and Audit Log acceptance still require operator confirmation.
+
+### Session helper API lockdown — 054 (2026-10-06)
+
+Status: installed and verified in production on 2026-10-06 at 09:43 MYT.
+This addresses re-audit finding 1 only. Login
+throttling and the Reveal modal race are separate, unchanged findings.
+
+The internal `orl_require_session(uuid)` returns an account row including its
+password hash. Revoking PUBLIC alone in 004 did not remove explicit client
+EXECUTE grants. Migration 054 revokes PUBLIC, anon, authenticated and service_role
+access to this exact helper, retaining trusted SECURITY DEFINER owner calls.
+It changes no function bodies, accounts, sessions, patient data or keys. It is
+repeat-safe but refuses unexpected overloads, residual inherited access or loss
+of trusted caller privileges. Do not restore the insecure grants as a shortcut.
+
+Run `security/release/Pasang-054.cmd`, enter the DATABASE password privately and
+confirm `INSTALL 054` only after the fresh private full backup succeeds. TLS and
+reviewed-file hashes are checked; the final six-check audit and backup hash are
+saved in an `ORL-054-SANITIZED-REPORT` under the existing private backup folder.
+No Edge or website publication is needed. On uncertain results inspect the
+read-only audit before retrying. After success, verify the public helper RPC
+rejects a fabricated session with permission-denied code 42501 (or is absent
+from the API schema), rather than executing and returning session error 28000.
+Do not use a real session to test hash disclosure.
+
+Production verification: ORL-054-report-20261006-094319.json reports all six
+checks true. Its migration hash matches the reviewed 054 file, and the private
+backup hash matches the recorded archive. A direct public RPC request using a
+fabricated session now returns HTTP 401 / PostgreSQL 42501 (permission denied),
+instead of executing the helper. The website returns HTTP 200. No real account
+token, password hash or patient record was read during the live check. A real
+user login was not performed; role/login compatibility was tested synthetically.
+No Edge or frontend deployment was required; do not rerun the installer.
+
+Verification: `tests/ic-write/run-c7-local.ps1 -WithSessionHelperGuard` passed
+five isolated database suites, with Supabase-style explicit public-schema
+function grants enabled from the initial replay. Coverage includes inherited
+grant rollback, repeat installation, unchanged data/function bodies/other ACLs,
+Staff/Admin/Webmaster login via anon and authenticated, direct helper denial even
+with valid synthetic tokens, internal Edge/public reads, required password
+change, logout/deactivation and audited OT export after the lockdown. Six focused
+release/export browser/gateway tests also passed. The full local runner now
+includes this guarded replay. These are synthetic tests, not real-patient access.
+
+## 055 — Postpone missing record revision
+
+Installed and verified in production on 2026-10-06. Sanitized receipt
+`ORL-055-report-20261006-162116.json` reports all six checks true; the actual
+private backup and migration file hashes match the receipt. The exact and
+recursive record revisions, reviewed function body, private access, recovery
+readiness and completed cutover passed. No real patient was moved by this
+verification; user acceptance of Postpone after refreshing remains pending.
+Do not rerun the installer after this successful installation.
+The final 046 `c1_mask_json` replacement retained free-text redaction but omitted
+the earlier `_ic_edit_version` enrichment. Consequently actual schedule rows
+lacked the exact `orl_requests.updated_at` token required by protected Postpone.
+The browser correctly stopped before sending MOVE. The independent read fixture
+already included the token, which had hidden this shipped-definition regression.
+
+055 replaces only the uniquely identified insertion point in the hash-reviewed
+masker body. It restores authoritative microsecond-precision timestamps for
+valid request IDs without changing patient data, encryption, ACLs or stale-write
+validation. It refuses an unexpected/already-patched body and rolls back if
+private helper access is not closed. No frontend or Edge deployment is required.
+
+Run `security/release/Pasang-055.cmd`, privately enter the DATABASE password,
+then type `INSTALL 055` after a fresh full private backup succeeds. The installer
+pins migration/audit files and verifies TLS. Its read-only six-check audit
+checks the resulting function hash, exact and recursive revision enrichment,
+private access, recovery readiness and the completed plaintext cutover. It
+returns only boolean checks, not patient values. The sanitized receipt and
+backup remain in the private backup folder. On uncertain results inspect the
+read-only audit before retrying; do not blindly reinstall. After success refresh
+the OT Schedule and reopen the form; already-open forms still lack the token.
+
+Verification: `tests/ic-write/run-c7-local.ps1 -WithPostponeVersion` passed six
+isolated integration suites replaying the shipped migrations with Supabase-style
+explicit grants. The new test reproduces the failure before 055, then exercises
+actual schedule output through the app form helpers, browser router, Edge gateway
+and SQL MOVE with synthetic Webmaster/Admin/Staff accounts. Cross-date moves,
+Staff special-slot denial, microsecond stale-write rejection, replay rejection,
+unchanged encrypted identity, postpone audit, masking and the production audit
+all passed. Installation leaves request/identity/slot/session data unchanged.
+Eight focused release/export tests also passed. No real patient was moved during
+testing. The full local runner now includes this shipped-definition regression.
+
+## 056 — Webmaster maintenance mode
+
+Server migration verified in production on 2026-10-06 using sanitized receipt
+`ORL-056-report-20261006-180955.json`: all six checks passed, and backup/migration
+file hashes match the receipt. A separate public status request confirmed OFF,
+revision 0 and no estimated end. Do not rerun the installer. Frontend release
+uses app cache 080 and maintenance.js/css 001. Do not publish the frontend
+first: an unavailable status is treated as unavailable access for non-Webmasters.
+No Edge deployment is required. Never turn production maintenance ON just to test
+this release; all toggle tests used disposable synthetic data.
+
+Run `security/release/Pasang-056.cmd`, privately enter the DATABASE password,
+then type `INSTALL 056` after the fresh full private backup. TLS/certificate and
+reviewed-file hashes are verified. Installation defaults OFF and does not alter
+patients, encrypted identities or sessions. The six-boolean sanitized receipt
+is saved under ORL-Private-Backups. On success verify the receipt/archive hashes,
+confirm public `orl_maintenance_status` reports OFF, then publish the frontend.
+On uncertain outcomes inspect the read-only audit; do not repeat installation.
+
+Webmaster Settings includes ON/OFF, a public notice (no patient details), optional
+estimated completion in Malaysia time, website-password confirmation and an
+explicit warning about unsaved work. Estimates do not automatically reopen the
+system. Stale revision, wrong password, inactive/password-change-required accounts
+and Admin/Staff control requests are denied by SQL. ON/OFF records actor, role,
+time and notice in Audit Log. An uncertain save is never retried automatically.
+
+The existing private session helper retains recovery/password/session guards
+and denies protected reads and writes to non-Webmasters during maintenance.
+It holds a shared maintenance-row lock for these transactions: enabling ON waits
+for already-authorized work to commit/rollback. A lock timeout leaves the switch
+unchanged. Webmaster remains able to work and turn maintenance OFF. Public notice,
+login/profile/logout and required-password-change flows remain accessible; they
+do not grant clinical access. The private state table cannot be read or modified
+directly by client/service roles. Portable operational .orlbackup import does not
+reset this separate control; full database backups include it.
+
+UI polls every 30 seconds and on focus, hides the clinical view, closes forms,
+and blocks further dispatch/results when maintenance is observed. Older cached
+clients still encounter the server gate but need refresh for the new notice.
+Data already downloaded/printed cannot be recalled; this is not backup, key
+rotation, protection from a compromised Webmaster, or an OS/server outage mode.
+
+Verification: seven shipped-definition isolated SQL suites pass, including the
+new OFF/ON/OFF, role/password/revision, fresh and existing session, lock-draining,
+unchanged patient/ciphertext, audit and inherited-access tests. Browser tests cover
+actual app bootstrap/RPC hooks, open-form removal, Webmaster Settings, public login,
+mobile viewport, text-only notice rendering, changed login and status failure.
+All 138 broader frontend/gateway/release tests pass. Production installation is
+verified; website assets must be checked against this release after publication.

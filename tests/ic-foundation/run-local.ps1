@@ -119,6 +119,6 @@ try {
 }
 if($IncludeC1){
   # C7 hash guards apply to shipped 046 definitions, not the C1 local-only fixtures.
-  & (Join-Path $PSScriptRoot '..\ic-write\run-c7-local.ps1')
+  & (Join-Path $PSScriptRoot '..\ic-write\run-c7-local.ps1') -WithPostponeVersion
   if($LASTEXITCODE-ne0){throw 'C7 production-definition integration failed.'}
 }
