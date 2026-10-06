@@ -15,7 +15,7 @@ test('053 installer pins reviewed files, backs up before confirmation, never res
  assert.match(sql,/revoke all on function public.orl_ic_ot_export_commit/);
 });
 test('release uses same Generate button and bumped module caches, with full IC only in audited Excel path',()=>{
- assert.match(read('docs/index.html'),/app\.js\?v=078/);assert.match(read('docs/index.html'),/ot-excel\.js\?v=067/);
+ assert.match(read('docs/index.html'),/app\.js\?v=078/);assert.match(read('docs/index.html'),/ot-excel\.js\?v=068/);
  assert.match(read('docs/app.js'),/ic-client\.mjs\?v=078/);
  const s=read('docs/ot-excel.js');
  assert.match(s,/fullIc=false/);assert.match(s,/orl_ic_ot_export/);

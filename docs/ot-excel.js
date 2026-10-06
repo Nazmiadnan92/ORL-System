@@ -17,8 +17,13 @@ async function readOtTemplate(buffer){
 async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const entries=await readOtTemplate(buffer),ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',decoder=new TextDecoder(),parser=new DOMParser(),serializer=new XMLSerializer();
  const parse=name=>{const doc=parser.parseFromString(decoder.decode(entries[name]),'application/xml');if(doc.querySelector('parsererror'))throw new Error('Invalid template XML.');return doc};
- const sheet=parse('xl/worksheets/sheet1.xml'),book=parse('xl/workbook.xml'),rows=sheet.getElementsByTagNameNS(ns,'sheetData')[0];
+ const sheet=parse('xl/worksheets/sheet1.xml'),book=parse('xl/workbook.xml'),styles=parse('xl/styles.xml'),rows=sheet.getElementsByTagNameNS(ns,'sheetData')[0];
  const all=(doc,tag)=>Array.from(doc.getElementsByTagNameNS(ns,tag));
+ // Always start from the unchanged template: each export increases every font
+ // by exactly 1 pt, including titles, headers, patient cells and the signature.
+ const enlargeFonts=doc=>all(doc,'sz').forEach(size=>{const pt=Number(size.getAttribute('val'));if(!Number.isFinite(pt)||pt<=0)throw Error('Invalid template font size.');size.setAttribute('val',String(pt+1))});
+ enlargeFonts(styles);enlargeFonts(sheet);
+ if(entries['xl/sharedStrings.xml']){const strings=parse('xl/sharedStrings.xml');enlargeFonts(strings);entries['xl/sharedStrings.xml']=serializer.serializeToString(strings)}
  const setCell=(row,col,value)=>{const ref=col+row.getAttribute('r');let cell=all(row,'c').find(c=>c.getAttribute('r')===ref);if(!cell){cell=sheet.createElementNS(ns,'c');cell.setAttribute('r',ref);row.append(cell)}cell.replaceChildren();cell.setAttribute('t','inlineStr');const is=sheet.createElementNS(ns,'is'),t=sheet.createElementNS(ns,'t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=String(value??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');is.append(t);cell.append(is)};
  const shiftRef=(ref,delta)=>ref.replace(/(\$?[A-Z]+\$?)(\d+)/g,(_,col,n)=>col+(Number(n)>=15?Number(n)+delta:n));
  const extra=patients.length-6,template=all(rows,'row').find(r=>r.getAttribute('r')==='14').cloneNode(true);
@@ -31,12 +36,15 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
   all(sheet,'dimension').forEach(d=>d.setAttribute('ref',shiftRef(d.getAttribute('ref'),extra)));
  }
  const dateRow=all(rows,'row').find(r=>r.getAttribute('r')==='4');for(const col of ['C','D','E','F','G','H'])setCell(dateRow,col,col==='C'?'TARIKH: '+formatOtDocumentDate(session.ot_date)+'.':'');
- patients.forEach((p,i)=>{const r=all(rows,'row').find(r=>Number(r.getAttribute('r'))===9+i),values=[i+1,[patientNameCase(p.patient_name),fullIc?String(p.patient_ic??''):maskPatientIc(p.patient_ic),clinicalUpper(p.mrn)].filter(Boolean).join('\n'),patientAgeText(p,session.ot_date,true),'',clinicalUpper(p.diagnosis),clinicalUpper(p.surgery),'','','',p.sub_specialty];values.forEach((v,j)=>setCell(r,String.fromCharCode(65+j),v));const widths=[5,25,8,13,29,28,21,17,17,11];const lines=Math.max(...values.map((v,j)=>String(v??'').split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/(widths[j]-2))),0)));r.setAttribute('ht',Math.max(60,lines*13+8));r.setAttribute('customHeight','1')});
+ patients.forEach((p,i)=>{const r=all(rows,'row').find(r=>Number(r.getAttribute('r'))===9+i),values=[i+1,[patientNameCase(p.patient_name),fullIc?String(p.patient_ic??''):maskPatientIc(p.patient_ic),clinicalUpper(p.mrn)].filter(Boolean).join('\n'),patientAgeText(p,session.ot_date,true),'',clinicalUpper(p.diagnosis),clinicalUpper(p.surgery),'','','',p.sub_specialty];values.forEach((v,j)=>setCell(r,String.fromCharCode(65+j),v));const widths=[5,25,8,13,29,28,21,17,17,11];const lines=Math.max(...values.map((v,j)=>String(v??'').split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/((widths[j]-2)*11/12))),0)));r.setAttribute('ht',Math.max(60,lines*14+8));r.setAttribute('customHeight','1')});
  all(book,'definedName').filter(n=>n.getAttribute('name')==='_xlnm.Print_Area').forEach(n=>n.textContent="'OT List'!$A$1:$J$"+(20+extra));
- // Allow tall lists to flow down pages rather than shrinking text to one page.
- all(sheet,'pageSetup').forEach(p=>{p.setAttribute('fitToWidth','1');p.setAttribute('fitToHeight','0')});
+ // One A4 landscape sheet, including the signature. Long lists are scaled by
+ // Excel at print time; never truncate clinical text to enforce a page count.
+ all(sheet,'pageSetUpPr').forEach(p=>p.setAttribute('fitToPage','1'));
+ all(sheet,'pageSetup').forEach(p=>{p.setAttribute('paperSize','9');p.setAttribute('orientation','landscape');p.setAttribute('fitToWidth','1');p.setAttribute('fitToHeight','1');p.removeAttribute('scale')});
+ for(const tag of ['rowBreaks','colBreaks'])all(sheet,tag).forEach(p=>p.remove());
  const names=all(book,'definedNames')[0];let title=all(names,'definedName').find(n=>n.getAttribute('name')==='_xlnm.Print_Titles');if(!title){title=book.createElementNS(ns,'definedName');title.setAttribute('name','_xlnm.Print_Titles');title.setAttribute('localSheetId','0');names.append(title)}title.textContent="'OT List'!$1:$8";
- entries['xl/worksheets/sheet1.xml']=serializer.serializeToString(sheet);entries['xl/workbook.xml']=serializer.serializeToString(book);
+ entries['xl/worksheets/sheet1.xml']=serializer.serializeToString(sheet);entries['xl/workbook.xml']=serializer.serializeToString(book);entries['xl/styles.xml']=serializer.serializeToString(styles);
  return new Blob([createDocxBlob(entries)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
 let otExportBusy=false;

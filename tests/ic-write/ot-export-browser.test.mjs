@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname,resolve} from 'node:path';import {pathToFileURL} from 'node:url';
 test('actual Excel builder and export modal: full IC only after protected response; cancel/signout/failures do not download',async()=>{
  const {chromium}=await import(pathToFileURL(resolve(dirname(process.execPath),'..','node_modules','playwright','index.mjs')));
@@ -32,19 +32,32 @@ test('actual Excel builder and export modal: full IC only after protected respon
   await page.addScriptTag({content:await read('docs/ot-excel.js')});
   const result=await page.evaluate(async()=>{
    const out=[];
-   for(const n of [1,3,8]){
+   const original=await readOtTemplate(template.slice(0)),decodeXml=v=>new DOMParser().parseFromString(new TextDecoder().decode(v),'application/xml');
+   const originalSizes=[...decodeXml(original['xl/styles.xml']).querySelectorAll('fonts font sz')].map(s=>Number(s.getAttribute('val')));
+   for(const n of [1,3,8,12]){
     const list=Array.from({length:n},()=>({...sample}));
     for(const fullIc of [false,true]){
      const blob=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},list,{fullIc});
      const entries=await readOtTemplate(await blob.arrayBuffer()),decode=new TextDecoder(),xml=decode.decode(entries['xl/worksheets/sheet1.xml']);
-     const doc=new DOMParser().parseFromString(xml,'application/xml');
+     const doc=new DOMParser().parseFromString(xml,'application/xml'),setup=doc.querySelector('pageSetup');
      out.push({n,fullIc,count:[...doc.querySelectorAll('c')].filter(c=>c.getAttribute('r').match(/^B\d+$/)&&c.textContent.includes('Synthetic Patient')).length,
       hasRaw:xml.includes(sample.patient_ic),hasMask:xml.includes('010203-**-****'),formulas:doc.querySelectorAll('f').length,
+      fontDeltas:[...decodeXml(entries['xl/styles.xml']).querySelectorAll('fonts font sz')].map((s,i)=>Number(s.getAttribute('val'))-originalSizes[i]),
+      a4:setup.getAttribute('paperSize')==='9',landscape:setup.getAttribute('orientation')==='landscape',
+      onePage:setup.getAttribute('fitToWidth')==='1'&&setup.getAttribute('fitToHeight')==='1'&&doc.querySelector('pageSetUpPr').getAttribute('fitToPage')==='1',
+      noFixedScale:!setup.hasAttribute('scale'),noManualBreaks:!doc.querySelector('rowBreaks,colBreaks'),
       printArea:decode.decode(entries['xl/workbook.xml']).includes('$J$'+(14+n))});
     }
    }return out;
   });
-  for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.fullIc);assert.equal(row.hasMask,!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea)}
+  for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.fullIc);assert.equal(row.hasMask,!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea);assert.ok(row.fontDeltas.every(n=>n===1));assert.ok(row.a4&&row.landscape&&row.onePage&&row.noFixedScale&&row.noManualBreaks)}
+  if(process.env.ORL_OT_LAYOUT_QA_DIR){
+   await mkdir(process.env.ORL_OT_LAYOUT_QA_DIR,{recursive:true});
+   for(const n of [3,12]){
+    const data=await page.evaluate(async n=>Array.from(new Uint8Array(await (await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},Array.from({length:n},(_,i)=>({...sample,patient_name:'Synthetic Patient '+(i+1),diagnosis:'SYNTHETIC LONG DIAGNOSIS FOR PRINT LAYOUT VERIFICATION',surgery:'SYNTHETIC PROCEDURE FOR PRINT LAYOUT VERIFICATION'})))).arrayBuffer())),n);
+    await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,`synthetic-${n}.xlsx`),new Uint8Array(data));
+   }
+  }
   await page.evaluate(()=>{user.role='STAFF';generateOtList(sid)});assert.equal(await page.locator('#otExportForm').count(),0);
   await page.evaluate(()=>{user.role='ADMIN';generateOtList(sid)});await page.locator('button.secondary').click();
   assert.equal(await page.evaluate(()=>rpcCount),0);
