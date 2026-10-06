@@ -75,7 +75,7 @@ test('soft login and maintenance palettes match across all themes, mobile layout
   await page.evaluate(()=>{notice.enabled=true;return controller.refresh()});
   await page.locator('.maintenance-login').click();assert.equal(await page.locator('#username').evaluate(el=>el===document.activeElement),true);
   await page.evaluate(()=>{actor={role:'STAFF'};failed=true;return controller.refresh()});
-  assert.match(await page.locator('.maintenance-title-accent').textContent(),/belum disahkan/);
+  assert.match(await page.locator('.maintenance-title-accent').textContent(),/unavailable/);
   assert.equal(await page.locator('.maintenance-time').isVisible(),false);
   assert.equal(await page.evaluate(()=>controller.before('orl_create_request').then(()=>false,()=>true)),true,'fail-closed protection unchanged');
   assert.deepEqual(errors,[]);assert.deepEqual(remote,[],'local assets only');

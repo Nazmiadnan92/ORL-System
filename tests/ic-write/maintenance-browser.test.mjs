@@ -23,6 +23,11 @@ test('maintenance screen, safe message, Webmaster form, changed login and unavai
  await page.evaluate(()=>{statusData.enabled=true;statusData.message='<img src=x onerror="window.exposed=true">';return controller.refresh()});
  assert.equal(await page.locator('.maintenance-screen').isVisible(),true);assert.equal(await page.locator('#app').isVisible(),false);
  assert.equal(await page.locator('.maintenance-message img').count(),0);
+ await page.evaluate(()=>{statusData.message='Sistem sedang diselenggara. Sila cuba semula sebentar lagi.';return controller.refresh()});
+ assert.equal(await page.locator('.maintenance-message').textContent(),'The system is under maintenance. Please try again shortly.');
+ assert.equal(await page.locator('.maintenance-notice-badge').textContent(),'TEMPORARY MAINTENANCE');
+ assert.equal(await page.locator('.maintenance-login').textContent(),'Sign Out');
+ assert.equal(await page.locator('.maintenance-estimate').textContent(),'To be announced');
  assert.equal(await page.evaluate(()=>controller.before('orl_create_request').then(()=>false,()=>true)),true);
  assert.equal(await page.evaluate(()=>controller.before('orl_logout').then(()=>true)),true);
  await page.evaluate(()=>{statusData.message='Kami sedang menjalankan penyelenggaraan berjadual untuk memastikan portal beroperasi dengan lancar. Sila semak semula sebentar lagi.';statusData.expected_end='2030-10-06T12:00:00Z';return controller.refresh()});
@@ -35,7 +40,11 @@ test('maintenance screen, safe message, Webmaster form, changed login and unavai
  await page.evaluate(()=>{actor={role:'WEBMASTER',user_id:'wm'};controller.paint()});
  assert.equal(await page.locator('.maintenance-screen').isVisible(),false);assert.equal(await page.locator('.maintenance-banner').isVisible(),true);
  assert.equal(await page.locator('.maintenance-banner').textContent(),'MAINTENANCE ON · Admin/Staff access paused');
+ await page.evaluate(()=>{statusData.message='Sistem sedang diselenggara. Sila cuba semula sebentar lagi.';return controller.refresh()});
+ assert.equal(await page.locator('.maintenance-banner').getAttribute('title'),'The system is under maintenance. Please try again shortly.');
  await page.evaluate(()=>controller.mountSettings(document.querySelector('#settings')));
+ assert.equal(await page.locator('[name="message"]').inputValue(),'The system is under maintenance. Please try again shortly.');
+ assert.equal(await page.locator('.maintenance-settings button').textContent(),'Save settings →');
  await page.locator('[name="message"]').fill('Penyelenggaraan berjadual sedang dijalankan. Terima kasih atas kesabaran anda.');
  assert.equal(await page.locator('.maintenance-preview-message').textContent(),'Penyelenggaraan berjadual sedang dijalankan. Terima kasih atas kesabaran anda.');
  assert.match(await page.locator('.maintenance-char-count').textContent(),/\/500$/);
