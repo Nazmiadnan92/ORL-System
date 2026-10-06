@@ -1,12 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';import {dirname,resolve} from 'node:path';import {pathToFileURL} from 'node:url';
+import {readFile,mkdir} from 'node:fs/promises';import {dirname,resolve} from 'node:path';import {pathToFileURL} from 'node:url';
 test('maintenance screen, safe message, Webmaster form, changed login and unavailable status',async()=>{
  const {chromium}=await import(pathToFileURL(resolve(dirname(process.execPath),'..','node_modules','playwright','index.mjs')));
  const browser=await chromium.launch({executablePath:'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',headless:true});
  try{
- const page=await browser.newPage();await page.route('**/*',r=>r.abort());
+ const page=await browser.newPage({viewport:{width:1280,height:900}});await page.route('**/*',r=>r.abort());
  await page.setContent('<section id="login"><input id="username"></section><section id="app"><div id="settings"></div></section>');
+ await page.addStyleTag({content:await readFile(new URL('../../docs/styles.css',import.meta.url),'utf8')});
  await page.addStyleTag({content:await readFile(new URL('../../docs/maintenance.css',import.meta.url),'utf8')});
+ await page.addStyleTag({content:'#settings{max-width:1040px;margin:30px auto;padding:0 20px}'});
+ await page.evaluate(()=>document.body.dataset.theme='PURPLE');
  await page.addScriptTag({content:await readFile(new URL('../../docs/maintenance.js',import.meta.url),'utf8')});
  await page.evaluate(()=>{
   window.actor={role:'ADMIN',user_id:'synthetic-admin'};window.session='synthetic-session';window.calls=[];window.blocks=0;window.resumes=0;window.failed=false;
@@ -21,10 +24,22 @@ test('maintenance screen, safe message, Webmaster form, changed login and unavai
  assert.equal(await page.locator('.maintenance-message img').count(),0);
  assert.equal(await page.evaluate(()=>controller.before('orl_create_request').then(()=>false,()=>true)),true);
  assert.equal(await page.evaluate(()=>controller.before('orl_logout').then(()=>true)),true);
+ await page.evaluate(()=>{statusData.message='Kami sedang menjalankan penyelenggaraan berjadual untuk memastikan portal beroperasi dengan lancar. Sila semak semula sebentar lagi.';statusData.expected_end='2030-10-06T12:00:00Z';return controller.refresh()});
+ const capture=async name=>{if(process.env.ORL_MAINTENANCE_QA){await mkdir(process.env.ORL_MAINTENANCE_QA,{recursive:true});await page.screenshot({path:resolve(process.env.ORL_MAINTENANCE_QA,name+'.png'),fullPage:true})}};
+ await capture('public-desktop');await page.setViewportSize({width:390,height:844});
+ assert.equal(await page.evaluate(()=>document.querySelector('.maintenance-screen').scrollWidth<=innerWidth),true);await capture('public-mobile');
+ await page.locator('.maintenance-login').scrollIntoViewIfNeeded();assert.equal(await page.locator('.maintenance-login').isVisible(),true);
+ await page.setViewportSize({width:1280,height:900});
  await page.evaluate(()=>controller.mountSettings(document.querySelector('#settings')));assert.equal(await page.locator('.maintenance-settings').count(),0);
  await page.evaluate(()=>{actor={role:'WEBMASTER',user_id:'wm'};controller.paint()});
  assert.equal(await page.locator('.maintenance-screen').isVisible(),false);assert.equal(await page.locator('.maintenance-banner').isVisible(),true);
  await page.evaluate(()=>controller.mountSettings(document.querySelector('#settings')));
+ await page.locator('[name="message"]').fill('Penyelenggaraan berjadual sedang dijalankan. Terima kasih atas kesabaran anda.');
+ assert.equal(await page.locator('.maintenance-preview-message').textContent(),'Penyelenggaraan berjadual sedang dijalankan. Terima kasih atas kesabaran anda.');
+ assert.match(await page.locator('.maintenance-char-count').textContent(),/\/500$/);
+ await capture('settings-desktop');await page.setViewportSize({width:390,height:844});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await capture('settings-mobile');
+ await page.setViewportSize({width:1280,height:900});
  await page.locator('[name="enabled"]').uncheck();await page.locator('[name="password"]').fill('SyntheticPass1');
  await page.locator('.maintenance-settings button').click();await page.waitForFunction(()=>calls.some(c=>c.name==='orl_set_maintenance'));
  assert.equal(await page.locator('[name="password"]').inputValue(),'');assert.equal(await page.locator('.maintenance-settings button').isDisabled(),true);

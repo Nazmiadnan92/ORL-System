@@ -9,6 +9,6 @@ test('maintenance deployment is backup first, hash pinned, OFF and contains no p
  assert.match(sql,/c1_recovery_ready/);assert.match(sql,/c1_require_session_core/);assert.match(sql,/orl_require_webmaster_password/);
  assert.match(sql,/p_expected_revision/);assert.match(sql,/MAINTENANCE_ON/);assert.match(sql,/MAINTENANCE_OFF/);
  assert.doesNotMatch(sql,/(?:update|delete from|insert into) (?:public.orl_requests|orl_private.request_identity)/i);
- const html=read('docs/index.html');assert.match(html,/app\.js\?v=080/);assert.match(html,/maintenance\.js\?v=001/);
+ const html=read('docs/index.html');assert.match(html,/app\.js\?v=080/);assert.match(html,/maintenance\.js\?v=002/);assert.match(html,/maintenance\.css\?v=002/);
  const app=read('docs/app.js');assert.match(app,/maintenance\?\.before\(name\)/);assert.match(app,/maintenance\?\.after\(name\)/);assert.match(app,/mountSettings\(c\)/);
 });
