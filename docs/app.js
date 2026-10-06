@@ -17,9 +17,9 @@ function protectedIcClient(){
     const send=module.createIcTransport({baseUrl:cfg.supabaseUrl,publishableKey:cfg.supabaseAnonKey,session:()=>token});
     let owner,manager;
     const getManager=()=>{
-      if(!user?.id)throw new Error('Please sign in again.');
-      if(owner!==user.id){
-        owner=user.id;const key='orl-pending-create:'+new URL(cfg.supabaseUrl).hostname+':'+owner;
+      if(!user?.user_id)throw new Error('Please sign in again.');
+      if(owner!==user.user_id){
+        owner=user.user_id;const key='orl-pending-create:'+new URL(cfg.supabaseUrl).hostname+':'+owner;
         manager=module.createPendingCreation({storage:localStorage,key,send,session:()=>token,withLock:fn=>{
           if(!navigator.locks)throw new Error('This browser cannot safely recover a save. Please use an updated browser.');
           return navigator.locks.request(key,{ifAvailable:true},lock=>{
