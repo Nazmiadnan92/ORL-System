@@ -19,7 +19,20 @@
   const icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4 8 9 8 9s8-5 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>';
   const doc=root.document,overlay=doc.createElement('section');overlay.className='maintenance-screen';overlay.hidden=true;
   overlay.setAttribute('aria-label','Status sistem ORL');
-  overlay.innerHTML=`<div class="maintenance-shell"><div class="maintenance-brand"><span class="maintenance-brand-icon">${icon}</span><div><strong>ORL OT</strong><span>MANAGEMENT SYSTEM</span></div><span class="maintenance-brand-caption">Operating Theatre Portal</span></div><div class="maintenance-card"><div class="maintenance-intro"><span class="maintenance-eyebrow">SYSTEM NOTICE</span><div class="maintenance-illustration" aria-hidden="true"><span class="maintenance-orbit"></span><span class="maintenance-emblem">${icon}</span><span class="maintenance-orbit-dot"></span></div><span class="maintenance-kicker">SEBENTAR SAHAJA</span><h1></h1><p class="maintenance-lead">Ruang kerja klinikal anda akan kembali tersedia selepas penyelenggaraan selesai.</p><div class="maintenance-service"><span></span>ORL Operating Theatre</div></div><div class="maintenance-detail"><span class="maintenance-notice-badge">AKSES DIHENTIKAN SEMENTARA</span><h2>Makluman kepada pengguna</h2><p class="maintenance-message" aria-live="polite"></p><div class="maintenance-time"><span class="maintenance-time-label">ANGGARAN KEMBALI</span><p class="maintenance-estimate"></p><small>Masa ini adalah anggaran. Akses dibuka semula oleh Webmaster.</small></div><div class="maintenance-public-actions"><button type="button" class="primary maintenance-retry">Semak status semula <span aria-hidden="true">↗</span></button><button type="button" class="maintenance-login">Webmaster sign in</button></div><p class="maintenance-help"></p></div></div><div class="maintenance-footer"><span>ORL OT Management System</span><span>Status disemak secara automatik setiap 30 saat</span></div></div>`;
+  overlay.innerHTML=`<div class="maintenance-shell">
+   <div class="maintenance-brand"><img src="assets/orl-logo.png" alt="" width="44" height="56"><div><strong>ORL OT MANAGEMENT</strong><span>Operating Theatre Portal</span></div><span class="maintenance-brand-caption">KLINIK ORL · TELINGA, HIDUNG &amp; TEKAK</span></div>
+   <div class="maintenance-card">
+    <div class="maintenance-detail">
+     <span class="maintenance-notice-badge"></span>
+     <h1><span class="maintenance-title-main"></span><span class="maintenance-title-accent"></span></h1>
+     <p class="maintenance-message" aria-live="polite"></p><p class="maintenance-lead"></p>
+     <div class="maintenance-time"><span class="maintenance-clock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><span class="maintenance-time-label">ANGGARAN SELESAI</span><p class="maintenance-estimate"></p><small>Akses dibuka semula oleh Webmaster, bukan secara automatik.</small></div></div>
+     <div class="maintenance-public-actions"><button type="button" class="primary maintenance-retry">Semak Status <span aria-hidden="true">↻</span></button><button type="button" class="maintenance-login">Log Masuk Webmaster</button></div><p class="maintenance-help"></p>
+    </div>
+    <div class="maintenance-art" aria-hidden="true"><span class="maintenance-art-halo"></span><span class="maintenance-art-plus">+</span><img data-src="assets/maintenance-ent-doctor.png" alt="" width="1232" height="1232" decoding="async"><span class="maintenance-art-caption">TELINGA · HIDUNG · TEKAK</span></div>
+   </div>
+   <div class="maintenance-footer"><span>ORL OT Management System</span><span>Status disemak secara automatik setiap 30 saat</span></div>
+  </div>`;
   const banner=doc.createElement('div');banner.className='maintenance-banner';banner.hidden=true;
   doc.body.append(overlay,banner);let loginRequested=false;
   const controller=create({read:()=>call('orl_maintenance_status',{}),user,onBlock,onResume,
@@ -29,14 +42,16 @@
     if(blocked){doc.querySelector('#app').hidden=true;if(show)doc.querySelector('#login').hidden=true;else doc.querySelector('#login').hidden=false}
     else if(actor)doc.querySelector('#app').hidden=false;
     else doc.querySelector('#login').hidden=false;
-    overlay.querySelector('h1').textContent=state?'Kami sedang menambah baik sistem.':'Menyemak status sistem.';
-    overlay.querySelector('.maintenance-kicker').textContent=state?'PENYELENGGARAAN SISTEM':'SAMBUNGAN SISTEM';
-    overlay.querySelector('.maintenance-notice-badge').textContent=state?'AKSES DIHENTIKAN SEMENTARA':'STATUS BELUM DISAHKAN';
-    overlay.querySelector('.maintenance-lead').textContent=state?'Terima kasih atas kesabaran anda. Akses akan dibuka semula selepas penyelenggaraan selesai.':'Kami belum dapat mengesahkan status portal. Sila semak sambungan dan cuba semula.';
+    if(show){const art=overlay.querySelector('.maintenance-art img');if(!art.getAttribute('src'))art.src=art.dataset.src}
+    overlay.querySelector('.maintenance-title-main').textContent=state?'Sistem sedang':'Status sistem';
+    overlay.querySelector('.maintenance-title-accent').textContent=state?'diselenggara.':'belum disahkan.';
+    overlay.querySelector('.maintenance-notice-badge').textContent=state?'PENYELENGGARAAN SEMENTARA':'SEMAK SAMBUNGAN';
+    overlay.querySelector('.maintenance-lead').textContent=state?'Terima kasih atas kesabaran anda.':'Sila semak sambungan internet dan cuba semula.';
     overlay.querySelector('.maintenance-message').textContent=state?.message||'Status belum dapat disahkan. Semak sambungan atau cuba semula.';
     overlay.querySelector('.maintenance-estimate').textContent=state?.expected_end?new Date(state.expected_end).toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+' MYT':'Akan dimaklumkan';
-    overlay.querySelector('.maintenance-login').textContent=actor?'Sign out':'Webmaster sign in';
-    overlay.querySelector('.maintenance-help').textContent='Akses Admin dan Staf dijeda sementara. Hanya Webmaster boleh masuk semasa penyelenggaraan.';
+    overlay.querySelector('.maintenance-time').hidden=!state;
+    overlay.querySelector('.maintenance-login').textContent=actor?'Log Keluar':'Log Masuk Webmaster';
+    overlay.querySelector('.maintenance-help').textContent=state?'Akses Admin dan Staf dijeda. Hanya Webmaster boleh masuk semasa penyelenggaraan.':'Akses dijeda sehingga status sistem dapat disahkan.';
     banner.hidden=!(state?.enabled&&(!blocked||loginRequested));
     banner.textContent=state?.enabled?'MAINTENANCE ON · Akses Admin/Staf dijeda':'';
     banner.title=state?.enabled?state.message:'';

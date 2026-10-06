@@ -1,0 +1,44 @@
+/* Shared public-page palette. Clinical/schedule theme tokens remain untouched.
+   Explicit colours also work in older browsers without color-mix(). */
+:root {
+ --portal-bg:#f1f7fa; --portal-glow:#dcebf3; --portal-tint:#edf5fa;
+ --portal-line:#d3e3ed; --portal-accent:#326e98; --portal-ink:#203e56; --portal-muted:#566e80;
+}
+body[data-theme="TAUPE"] {
+ --portal-bg:#f8f4f0; --portal-glow:#eee1db; --portal-tint:#f6eee9;
+ --portal-line:#e5d6ce; --portal-accent:#865f59; --portal-ink:#503d3a; --portal-muted:#77635d;
+}
+body[data-theme="RUBY"] {
+ --portal-bg:#fcf5f4; --portal-glow:#f3e0e2; --portal-tint:#faeeee;
+ --portal-line:#edcfd5; --portal-accent:#9a405a; --portal-ink:#582d3b; --portal-muted:#7d5d67;
+}
+body[data-theme="ROSE"] {
+ --portal-bg:#f7f7fb; --portal-glow:#e6e9f3; --portal-tint:#f0f2f9;
+ --portal-line:#d9dfed; --portal-accent:#60749d; --portal-ink:#344461; --portal-muted:#63708b;
+}
+body[data-theme="PURPLE"] {
+ --portal-bg:#f5f6f0; --portal-glow:#e0e9dc; --portal-tint:#edf3ea;
+ --portal-line:#d3dfcf; --portal-accent:#39765a; --portal-ink:#294f3d; --portal-muted:#5e7265;
+}
+body[data-theme] #login {
+ min-height:100vh; padding:36px 20px;
+ background:var(--portal-bg);
+ background-image:radial-gradient(ellipse at 10% 0%,var(--portal-glow),transparent 58%),radial-gradient(ellipse at 95% 95%,var(--portal-tint),transparent 60%);
+ color:var(--portal-ink);
+}
+#login .login-card {
+ width:min(420px,100%); padding:34px 38px 26px; border:1px solid var(--portal-line);
+ border-radius:24px; box-shadow:0 24px 65px #233b5212; background:#fff;
+}
+#login .login-logo{width:102px;height:126px;margin-bottom:20px}
+#login .login-card h1{font-size:23px;line-height:1.25;letter-spacing:-.025em;color:var(--portal-ink);max-width:310px;margin:auto}
+#login .login-card>p{font-size:13px;color:var(--portal-muted);margin:12px 0 24px}
+#login .login-card label{font-size:12px;font-weight:650;color:var(--portal-ink);margin-top:18px}
+#login .login-card input{min-height:48px;margin-top:7px;padding:12px 14px;background:#fcfdfe;border:1px solid var(--portal-line);border-radius:10px;color:var(--portal-ink);font-size:16px}
+#login .login-card input:focus{outline:2px solid var(--portal-accent);outline-offset:2px}
+#login .login-card .primary{min-height:48px;border-radius:10px;margin-top:25px;background:var(--portal-accent);color:#fff;font-size:14px;box-shadow:0 4px 12px #233b5212}
+#login .login-card .primary:hover{background:var(--portal-ink)}
+#login .login-card .primary:focus-visible{outline:3px solid var(--portal-accent);outline-offset:3px}
+#login .message{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:520px){body[data-theme] #login{padding:24px 16px}#login .login-card{padding:28px 26px 22px;border-radius:22px}#login .login-card h1{font-size:22px}}
+@media(max-height:650px){body[data-theme] #login{padding:20px 16px}#login .login-logo{width:74px;height:92px;margin-bottom:12px}}

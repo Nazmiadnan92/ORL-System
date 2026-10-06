@@ -7,6 +7,7 @@ test('maintenance screen, safe message, Webmaster form, changed login and unavai
  const page=await browser.newPage({viewport:{width:1280,height:900}});await page.route('**/*',r=>r.abort());
  await page.setContent('<section id="login"><input id="username"></section><section id="app"><div id="settings"></div></section>');
  await page.addStyleTag({content:await readFile(new URL('../../docs/styles.css',import.meta.url),'utf8')});
+ await page.addStyleTag({content:await readFile(new URL('../../docs/portal.css',import.meta.url),'utf8')});
  await page.addStyleTag({content:await readFile(new URL('../../docs/maintenance.css',import.meta.url),'utf8')});
  await page.addStyleTag({content:'#settings{max-width:1040px;margin:30px auto;padding:0 20px}'});
  await page.evaluate(()=>document.body.dataset.theme='PURPLE');

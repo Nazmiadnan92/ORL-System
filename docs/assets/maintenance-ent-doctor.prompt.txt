@@ -1,0 +1,7 @@
+Asset: maintenance-ent-doctor.png
+Generated with the built-in imagegen tool, not the CLI/API fallback.
+Reference: the user-approved maintenance mockup generated in this conversation.
+Decorative illustration only; not a real staff portrait or medical instruction.
+
+Final prompt:
+Use case: background-extraction. Input image is an approved ORL maintenance website mockup; edit target is ONLY the illustrated ENT doctor on its right. Produce a standalone website illustration asset: isolate that same friendly masked male ENT doctor, head mirror, white coat, muted blue scrubs, holding tuning fork and otoscope. Preserve his appearance, pose, hands and polished editorial illustration style. Center waist-up doctor on truly TRANSPARENT background, closely framed with small margin around head and hands. Keep the entire head mirror and both instruments uncut; bottom ends cleanly at waist. Remove ALL website UI, ALL lettering, all ear/nose outlines, circles, plants and decorative background. No letters, no logo, no shadow backdrop, no extra props. Keep natural skin tones; soften blue clothing slightly toward desaturated slate-blue to fit soft healthcare website palettes. Output just transparent cutout doctor.
