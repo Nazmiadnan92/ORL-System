@@ -53,7 +53,7 @@
     overlay.querySelector('.maintenance-login').textContent=actor?'Log Keluar':'Log Masuk Webmaster';
     overlay.querySelector('.maintenance-help').textContent=state?'Akses Admin dan Staf dijeda. Hanya Webmaster boleh masuk semasa penyelenggaraan.':'Akses dijeda sehingga status sistem dapat disahkan.';
     banner.hidden=!(state?.enabled&&(!blocked||loginRequested));
-    banner.textContent=state?.enabled?'MAINTENANCE ON · Akses Admin/Staf dijeda':'';
+    banner.textContent=state?.enabled?'MAINTENANCE ON · Admin/Staff access paused':'';
     banner.title=state?.enabled?state.message:'';
    }});
   overlay.querySelector('.maintenance-retry').onclick=()=>controller.refresh();

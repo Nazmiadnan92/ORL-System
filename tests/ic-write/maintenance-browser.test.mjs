@@ -34,6 +34,7 @@ test('maintenance screen, safe message, Webmaster form, changed login and unavai
  await page.evaluate(()=>controller.mountSettings(document.querySelector('#settings')));assert.equal(await page.locator('.maintenance-settings').count(),0);
  await page.evaluate(()=>{actor={role:'WEBMASTER',user_id:'wm'};controller.paint()});
  assert.equal(await page.locator('.maintenance-screen').isVisible(),false);assert.equal(await page.locator('.maintenance-banner').isVisible(),true);
+ assert.equal(await page.locator('.maintenance-banner').textContent(),'MAINTENANCE ON · Admin/Staff access paused');
  await page.evaluate(()=>controller.mountSettings(document.querySelector('#settings')));
  await page.locator('[name="message"]').fill('Penyelenggaraan berjadual sedang dijalankan. Terima kasih atas kesabaran anda.');
  assert.equal(await page.locator('.maintenance-preview-message').textContent(),'Penyelenggaraan berjadual sedang dijalankan. Terima kasih atas kesabaran anda.');
