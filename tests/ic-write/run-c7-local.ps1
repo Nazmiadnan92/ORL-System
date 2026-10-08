@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics)
+if($WithStatistics){$WithBookingWorkflow=$true}
 if($WithBookingWorkflow){$WithMaintenance=$true}
 if($WithMaintenance){$WithPostponeVersion=$true}
 if($WithPostponeVersion){$WithSessionHelperGuard=$true}
@@ -71,6 +72,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
       & node --test (Join-Path $PSScriptRoot $suite)
       if($LASTEXITCODE-ne0){throw "Booking workflow integration failed: $suite"}
     }
+  }
+  if($WithStatistics){
+    & node --test (Join-Path $PSScriptRoot 'statistics-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Global statistics integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort
