@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics)
+if($WithSharedStatistics){$WithStatistics=$true}
 if($WithStatistics){$WithBookingWorkflow=$true}
 if($WithBookingWorkflow){$WithMaintenance=$true}
 if($WithMaintenance){$WithPostponeVersion=$true}
@@ -76,6 +77,12 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithStatistics){
     & node --test (Join-Path $PSScriptRoot 'statistics-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Global statistics integration failed.'}
+  }
+  if($WithSharedStatistics){
+    & node --test (Join-Path $PSScriptRoot 'shared-statistics-release.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Shared statistics release safety tests failed.'}
+    & node --test (Join-Path $PSScriptRoot 'shared-statistics-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Shared statistics patient list integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

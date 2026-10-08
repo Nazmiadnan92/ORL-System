@@ -13,5 +13,5 @@ test('059 release changes only aggregate scope and keeps private/masked boundari
  assert.doesNotMatch(installer,/pg_restore\.exe.*--dbname|PGSSLMODE\s*=\s*['"]?(disable|require)/);
  const base=read('supabase/041_subspecialty_statistics.sql').match(/as \$\$([\s\S]*?)\$\$;/)[1].replaceAll('\r','').replace(/^[ \t]+/gm,'');
  assert.ok(migration.includes(createHash('md5').update(base).digest('hex')));
- assert.match(read('docs/index.html'),/clinical-features\.js\?v=063/);
+ assert.match(read('docs/index.html'),/clinical-features\.js\?v=064/);
 });

@@ -8,3 +8,5 @@
 /tests/ic-write/fixtures/schedule-020-deployed-indentation.sql text eol=lf
 /supabase/059_global_subspecialty_statistics.sql text eol=lf
 /security/release/audit-global-statistics.sql text eol=lf
+/supabase/060_shared_statistics_patient_list.sql text eol=lf
+/security/release/audit-shared-statistics.sql text eol=lf
