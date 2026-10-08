@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import * as client from '../../docs/ic-client.mjs';
 
 const app = readFileSync(new URL('../../docs/app.js', import.meta.url), 'utf8');
+const dateHelpers=readFileSync(new URL('../../docs/booking-workflow.js',import.meta.url),'utf8').split('function refreshPastOtCards')[0];
 const helpers = app.slice(app.indexOf('let protectedIcClientPromise;'), app.indexOf('function toast('));
 const active = name => app.split(/\r?\n/).filter(line =>
   line.startsWith('function ' + name + '(') || line.startsWith('async function ' + name + '(')).at(-1);
@@ -247,9 +248,18 @@ function assignmentHarness(enabled=true){
   const bind=app.slice(app.indexOf('function bindRequestForm('),app.indexOf('\nfunction submit(){',app.indexOf('function bindRequestForm(')));
   const direct=app.slice(app.indexOf('function directRequestAllowed('),app.indexOf('function slotPreview(',app.indexOf('function directRequestAllowed(')));
   const assign=app.slice(app.indexOf('let assignSlotBusy='),app.indexOf('\nfunction ',app.indexOf('let assignSlotBusy=')));
-  vm.runInContext(bind+'\n'+direct+'\n'+assign,ctx);
+  vm.runInContext(dateHelpers+'\n'+bind+'\n'+direct+'\n'+assign,ctx);
   return {ctx,calls,form,slot,message,fail:()=>{failAssign=true},submit:()=>form.onsubmit({preventDefault(){},submitter:button})};
 }
+
+test('past-date guard stops a stale direct form and pending assignment before any writes',async()=>{
+ for(const enabled of [true,false]){
+  const h=assignmentHarness(enabled);h.ctx.requestSlot(id);h.ctx.isPastOtDate=()=>true;await h.submit();
+  assert.equal(h.calls.some(x=>x.name),false);assert.match(h.message.textContent,/Past OT dates/);
+  h.ctx.pendingRequest=id;await h.ctx.assignSlot(id);assert.equal(h.calls.some(x=>x.name),false);
+  assert.equal(h.ctx.pendingRequest,id,'Existing pending request is not discarded by the date guard');
+ }
+});
 
 test('actual direct-slot form preserves opening slot generation and default-OFF legacy argument shape',async()=>{
   for(const enabled of [true,false]){
@@ -324,7 +334,7 @@ function harness({ enabled = true, role = 'ADMIN' } = {}) {
     },
     esc: x => String(x), dashStat: () => '', decodeBackup: async () => ({ format: 'ORLOMS_BACKUP', version: 1 }),
   });
-  vm.runInContext(helpers + '\n' + ['editSlot', 'postponeSlot', 'completePostpone', 'previewBackup', 'dbRemove'].map(active).join('\n'), ctx);
+  vm.runInContext(dateHelpers+'\n'+helpers + '\n' + ['editSlot', 'postponeSlot', 'completePostpone', 'previewBackup', 'dbRemove'].map(active).join('\n'), ctx);
   vm.runInContext(app.slice(app.indexOf('let reassignSelection=null;'),app.indexOf('function editSlot(')),ctx);
   ctx.testClient = api;
   vm.runInContext('protectedIcClientPromise=Promise.resolve(testClient);', ctx);

@@ -1,4 +1,26 @@
 // Non-IC booking metadata only. Every write uses a captured server snapshot.
+function malaysiaOtDateKey(at=new Date()){
+ const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(at).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+ return `${p.year}-${p.month}-${p.day}`;
+}
+function isPastOtDate(date,at=new Date()){return /^\d{4}-\d{2}-\d{2}$/.test(date||'')&&date<malaysiaOtDateKey(at)}
+function refreshPastOtCards(){
+ if(typeof currentPage==='undefined'||currentPage!=='schedule'||typeof user==='undefined'||!user)return;
+ for(const session of window._schedule||[]){
+  const card=document.getElementById('d-'+session.ot_date);
+  if(!card||card.classList.contains('past')||!isPastOtDate(session.ot_date))continue;
+  const open=card.classList.contains('open'),left=card.querySelector('.slot-grid')?.scrollLeft||0;
+  const holder=document.createElement('div');holder.innerHTML=scheduleCard(session,window._holidays||[]);
+  const next=holder.firstElementChild;if(open)next.classList.add('open');card.replaceWith(next);
+  if(open)next.querySelector('.session-toggle').textContent='Hide OT ▴';
+  const grid=next.querySelector('.slot-grid');if(grid)grid.scrollLeft=left;
+ }
+ const day=malaysiaOtDateKey();if(window._pastOtDirectoryDay!==day&&window._specialOtDays&&document.getElementById('specialDays')){
+  window._pastOtDirectoryDay=day;document.getElementById('specialDays').innerHTML=renderSpecialDays(window._specialOtDays);
+ }
+}
+document.addEventListener('DOMContentLoaded',()=>{setInterval(refreshPastOtCards,30000)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPastOtCards()});
 let bookingContext=null,bookingMoves=[],bookingMoveOwner=null;
 const bookingUuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value||'');
 const bookingAdmin=()=>['ADMIN','WEBMASTER'].includes(user?.role);
@@ -61,7 +83,7 @@ async function bookingLoadDates(c,month){
   try{
     const rows=await rpc(c.mode==='REQUEST'?'orl_booking_move_dates':'orl_get_schedule',{p_session_token:c.owner,p_year:year,p_month:m});
     if(!bookingAlive(c)||seq!==c.sequence||c.used)return;
-    const dates=rows.filter(s=>s.status==='ACTIVE'&&(c.mode!=='REVIEW'||s.ot_date===c.view.target_date));
+    const dates=rows.filter(s=>s.status==='ACTIVE'&&!isPastOtDate(s.ot_date)&&(c.mode!=='REVIEW'||s.ot_date===c.view.target_date));
     box.innerHTML=dates.map(s=>{
       const same=c.mode==='REQUEST'&&s.ot_date===c.view.from_date;
       const slots=(s.slots||[]).filter(x=>x._ic_generation===c.view.generation);
@@ -102,7 +124,7 @@ async function bookingCommit(c,choice){
     confirmation=reject?'Reject only this move request? The original booking remains unchanged.':`${c.mode==='ASSIGN'?'Assign existing request':'Approve '+v.action} to ${formatSystemDate(slot.date)}, ${slot.type} S${slot.number}?`;
   }
   if(!confirm(confirmation)||!bookingAlive(c))return;
-  c.used=true; // Lost responses must be reconciled by a fresh read, never retried here.
+  if(choice.date&&isPastOtDate(choice.date)||choice.slot&&isPastOtDate(c.slots?.get(choice.slot)?.date)){out.textContent='Past OT dates are closed to new bookings. Choose today or a future date.';return}c.used=true; // Lost responses must be reconciled by a fresh read, never retried here.
   c.box.querySelectorAll('button,input,textarea').forEach(el=>el.disabled=true);out.textContent='Saving…';
   try{
     const result=await rpc(name,{p_session_token:c.owner,...args});

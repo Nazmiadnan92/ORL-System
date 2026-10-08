@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt)
+if($WithPastOt){$WithSharedStatistics=$true}
 if($WithSharedStatistics){$WithStatistics=$true}
 if($WithStatistics){$WithBookingWorkflow=$true}
 if($WithBookingWorkflow){$WithMaintenance=$true}
@@ -83,6 +84,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
     if($LASTEXITCODE-ne0){throw 'Shared statistics release safety tests failed.'}
     & node --test (Join-Path $PSScriptRoot 'shared-statistics-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Shared statistics patient list integration failed.'}
+  }
+  if($WithPastOt){
+    & node --test (Join-Path $PSScriptRoot 'past-ot-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Past OT booking protection integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

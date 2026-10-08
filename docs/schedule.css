@@ -72,3 +72,13 @@ input[name="patient_name"]{text-transform:capitalize}input[name="mrn"],input[nam
 .collapsed-slot.special-slot.available{background:#fff8dc;border-color:#c99a25;color:#705000}
 .collapsed-slot.special-slot.confirmed{background:#f5d77b;border-color:#b88916;color:#594000;font-weight:700}
 .collapsed-slot.special-slot.available:hover,.collapsed-slot.special-slot.available:focus-visible{background:#f5d77b;color:#594000;border-color:#926b0b}
+
+/* Past OT dates stay readable; patient status colours inside View OT retain their meaning. */
+.session-card.past.session-card{background:#f1f3f5;border-color:#b8c0c9;border-top-color:#4b5563}
+.session-card.past .session-date{color:#374151}
+.session-card.past .session-head{background:#f1f3f5}
+.session-card.past .admit{color:#52606d}
+.badge.PAST{background:#4b5563;color:#fff;border:1px solid #4b5563}
+.session-card.past .past-notice,.special-availability.past-notice{background:#e2e6eb;color:#374151;border-color:#b8c0c9}
+.session-card.past .collapsed-slot.available{background:#e2e6eb;border-color:#b8c0c9;color:#566170;cursor:default}
+.session-card.past .collapsed-slot.available:hover{background:#e2e6eb;color:#566170;transform:none}

@@ -1,0 +1,20 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createHash} from 'node:crypto';
+const read=p=>readFileSync(new URL('../../'+p,import.meta.url),'utf8');
+test('061 is baseline-pinned and backup-first; only booking destinations change, not stored status, grants, restore or printing',()=>{
+ const sql=read('supabase/061_past_ot_booking_guard.sql'),installer=read('security/release/install-061.ps1');
+ for(const path of ['supabase/061_past_ot_booking_guard.sql','security/release/audit-past-ot.sql'])assert.ok(installer.includes(createHash('sha256').update(readFileSync(new URL('../../'+path,import.meta.url))).digest('hex').toUpperCase()));
+ const names=[...sql.matchAll(/create or replace function public\.(\w+)/g)].map(x=>x[1]);
+ assert.deepEqual(names,['orl_assign_slot','orl_move_postponed_checked','orl_booking_move_request','orl_booking_move_review']);
+ assert.equal((sql.match(/at time zone 'Asia\/Kuala_Lumpur'/g)||[]).length,4);
+ assert.doesNotMatch(sql,/\bgrant\b|\balter table\b|\bcreate trigger\b|orl_ic_c1_import|orl_ic_ot_export/);
+ assert.ok(installer.indexOf('pg_dump.exe')<installer.indexOf("Read-Host 'Type INSTALL 061'"));
+ assert.match(installer,/sslmode=verify-full/);assert.match(installer,/AsSecureString/);assert.match(installer,/\.Count-ne9/);
+ assert.doesNotMatch(installer,/pg_restore\.exe.*--dbname/);
+ const ui=read('docs/app.js'),booking=read('docs/booking-workflow.js'),html=read('docs/index.html');
+ assert.match(ui,/isPastOtDate\(s\.ot_date\)\?status\('PAST'\)/);
+ assert.match(ui,/if\(target&&isPastOtDate\(target\.date\)\)/);
+ assert.match(booking,/s\.status==='ACTIVE'&&!isPastOtDate\(s\.ot_date\)/);
+ assert.match(booking,/setInterval\(refreshPastOtCards,30000\)/);
+ assert.match(html,/app\.js\?v=082/);assert.match(html,/booking-workflow\.js\?v=002/);assert.match(html,/schedule\.css\?v=071/);
+ assert.ok(html.indexOf('booking-workflow.js?v=002')<html.indexOf('app.js?v=082'));
+});

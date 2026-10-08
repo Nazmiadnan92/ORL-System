@@ -10,3 +10,5 @@
 /security/release/audit-global-statistics.sql text eol=lf
 /supabase/060_shared_statistics_patient_list.sql text eol=lf
 /security/release/audit-shared-statistics.sql text eol=lf
+/supabase/061_past_ot_booking_guard.sql text eol=lf
+/security/release/audit-past-ot.sql text eol=lf
