@@ -2,3 +2,7 @@
 /security/release/audit-ot-export.sql text eol=lf
 /supabase/056_webmaster_maintenance.sql text eol=lf
 /security/release/audit-maintenance.sql text eol=lf
+/supabase/057_booking_move_requests.sql text eol=lf
+/supabase/058_six_special_slots_2027.sql text eol=lf
+/security/release/audit-booking-workflow.sql text eol=lf
+/tests/ic-write/fixtures/schedule-020-deployed-indentation.sql text eol=lf

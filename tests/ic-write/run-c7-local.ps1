@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow)
+if($WithBookingWorkflow){$WithMaintenance=$true}
 if($WithMaintenance){$WithPostponeVersion=$true}
 if($WithPostponeVersion){$WithSessionHelperGuard=$true}
 if($WithSessionHelperGuard){$WithOtExport=$true}
@@ -64,6 +65,12 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithMaintenance){
     & node --test (Join-Path $PSScriptRoot 'maintenance-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Maintenance integration failed.'}
+  }
+  if($WithBookingWorkflow){
+    foreach($suite in @('booking-install-integration.test.mjs','booking-move-integration.test.mjs','special-capacity-integration.test.mjs')){
+      & node --test (Join-Path $PSScriptRoot $suite)
+      if($LASTEXITCODE-ne0){throw "Booking workflow integration failed: $suite"}
+    }
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

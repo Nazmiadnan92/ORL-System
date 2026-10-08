@@ -1,0 +1,17 @@
+/* Status colours are independent of the selected site theme. */
+.booking-day{padding:14px;border:1px solid var(--line);border-radius:10px;margin:10px 0}
+.booking-day.special-day,.post-date.special-day{background:#faf5ff;border:1px solid #d8b4fe;border-left:4px solid #7e22ce;border-radius:10px;padding:12px}
+.booking-special-title{display:block;color:#6b21a8;font-weight:700;margin:5px 0;overflow-wrap:anywhere}
+.booking-slots{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.booking-slots button{min-height:40px;padding:8px 12px;border-radius:8px;font:inherit;cursor:pointer}
+#bookingMonth{display:block;padding:9px 12px;margin-top:5px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.booking-slots .special,.post-date .slot.special{background:#fff8dc;color:#705000;border:1px solid #c99a25}
+.booking-slots .special:hover,.post-date .slot.special:hover{background:#f5d77b;color:#594000}
+.booking-slots button[disabled]{opacity:.5;cursor:not-allowed}
+.booking-context{background:var(--bg,#f7f8fa);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0}
+.booking-context small{display:block;margin-top:5px}
+.booking-moves{margin:18px 0}
+.booking-moves article{padding:12px 0;border-bottom:1px solid var(--line)}
+.booking-moves article small{display:block;margin:5px 0}
+.booking-outcome{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px}
+.booking-duplicate-actions{display:flex;flex-wrap:wrap;gap:6px}

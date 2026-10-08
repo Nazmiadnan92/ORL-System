@@ -229,7 +229,7 @@ test('actual Review blocks Staff, changed login, missing generation and no-longe
 });
 
 function assignmentHarness(enabled=true){
-  const calls=[],message={},button={},form={elements:{},querySelector:()=>button};
+  const calls=[],message={},button={},form={elements:{},dataset:{},querySelector:()=>button};
   for(const name of ['age','mrn','patient_name','surgery','diagnosis','doctor','specialist','sub_specialty','phone'])
     form.elements[name]={value:'Synthetic',addEventListener(){}};
   const slot={id,type:'MAIN',number:1,status:'AVAILABLE',_ic_generation:session};
