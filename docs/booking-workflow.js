@@ -4,8 +4,15 @@ function malaysiaOtDateKey(at=new Date()){
  return `${p.year}-${p.month}-${p.day}`;
 }
 function isPastOtDate(date,at=new Date()){return /^\d{4}-\d{2}-\d{2}$/.test(date||'')&&date<malaysiaOtDateKey(at)}
+function otMonthState(month,at=new Date()){
+ if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month||''))return '';
+ const current=malaysiaOtDateKey(at).slice(0,7);return month<current?'past':month===current?'current-month':'';
+}
 function refreshPastOtCards(){
  if(typeof currentPage==='undefined'||currentPage!=='schedule'||typeof user==='undefined'||!user)return;
+ const at=new Date();document.querySelectorAll('#monthTabs .month-tab[data-ot-month]').forEach(card=>{
+  const state=otMonthState(card.dataset.otMonth,at);card.classList.toggle('past',state==='past');card.classList.toggle('current-month',state==='current-month');
+ });
  for(const session of window._schedule||[]){
   const card=document.getElementById('d-'+session.ot_date);
   if(!card||card.classList.contains('past')||!isPastOtDate(session.ot_date))continue;

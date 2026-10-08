@@ -37,7 +37,9 @@ function otTextPieces(value,width,maxLines){
 function otPatientBlocks(patient,index,date,fullIc){
  const values=[patientNameCase(patient.patient_name),fullIc?String(patient.patient_ic??''):maskPatientIc(patient.patient_ic),
   clinicalUpper(patient.mrn),patientAgeText(patient,date,true),clinicalUpper(patient.diagnosis),clinicalUpper(patient.surgery),patient.sub_specialty];
- const limits=[[132,4],[132,2],[132,2],[46,11],[150,11],[144,11],[52,11]];
+ // Conservative inner widths for the wider uploaded template. Keep the font
+ // unchanged; long clinical text continues in complete five-row blocks.
+ const limits=[[162,4],[162,2],[162,2],[42,16],[190,16],[183,16],[64,16]];
  const fields=values.map((value,i)=>otTextPieces(value,...limits[i])),count=Math.max(...fields.map(p=>p.length)),blocks=[];
  for(let part=0;part<count;part++){
   const cells=fields.map(p=>p[part]||{text:'',lines:1});
@@ -58,12 +60,12 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const all=(doc,tag)=>Array.from(doc.getElementsByTagNameNS(ns,tag));
  const setCell=(row,col,value)=>{const ref=col+row.getAttribute('r');let cell=all(row,'c').find(c=>c.getAttribute('r')===ref);if(!cell){cell=sheet.createElementNS(ns,'c');cell.setAttribute('r',ref);row.append(cell)}cell.replaceChildren();cell.setAttribute('t','inlineStr');const is=sheet.createElementNS(ns,'is'),t=sheet.createElementNS(ns,'t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=String(value??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');is.append(t);cell.append(is)};
  const sourceRows=all(rows,'row'),rowAt=n=>sourceRows.find(r=>Number(r.getAttribute('r'))===n),merges=all(sheet,'mergeCells')[0];
- if(!rowAt(22)||!all(merges,'mergeCell').some(m=>m.getAttribute('ref')==='B12:B13'))throw Error('OT template version mismatch. Reload the website before generating.');
+ if(!rowAt(27)||!all(merges,'mergeCell').some(m=>m.getAttribute('ref')==='B27:E27')||!all(merges,'mergeCell').some(m=>m.getAttribute('ref')==='B12:B13'))throw Error('OT template version mismatch. Reload the website before generating.');
  const body=sourceRows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=16);
- const footer=sourceRows.filter(r=>Number(r.getAttribute('r'))>=17&&Number(r.getAttribute('r'))<=22);
+ const footer=sourceRows.filter(r=>Number(r.getAttribute('r'))>=22&&Number(r.getAttribute('r'))<=27);
  const shift=(ref,delta)=>ref.replace(/(\$?[A-Z]+\$?)(\d+)/g,(_,col,n)=>col+(Number(n)+delta));
  const bodyMerges=all(merges,'mergeCell').map(m=>m.getAttribute('ref')).filter(ref=>/^[A-Z]+12:/.test(ref));
- const footerMerges=all(merges,'mergeCell').map(m=>m.getAttribute('ref')).filter(ref=>Number(ref.match(/\d+/)[0])>=17);
+ const footerMerges=all(merges,'mergeCell').map(m=>m.getAttribute('ref')).filter(ref=>Number(ref.match(/\d+/)[0])>=22);
  sourceRows.filter(r=>Number(r.getAttribute('r'))>=12).forEach(r=>r.remove());
  all(merges,'mergeCell').filter(m=>Number(m.getAttribute('ref').match(/\d+/)[0])>=12).forEach(m=>m.remove());
  const addMerge=ref=>{const m=sheet.createElementNS(ns,'mergeCell');m.setAttribute('ref',ref);merges.append(m)};
@@ -72,9 +74,10 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const blocks=patients.flatMap((patient,index)=>otPatientBlocks(patient,index,session.ot_date,fullIc));
  if(!blocks.length)blocks.push({number:'',part:0,cells:['No scheduled patients.','','','','','',''],height:20.1});
  const headerHeight=sourceRows.filter(r=>Number(r.getAttribute('r'))<=11).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
- // 1044px columns fit A4 landscape at 100%. Fit-to-page is disabled because
- // Excel otherwise ignores manual page breaks. No patient-count font scaling.
- const bodyBudget=210/25.4*72-108-headerHeight-12,footerHeight=footer.reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
+ // Preserve the uploaded template's fixed print scale. Disable fit-to-page so
+ // manual breaks are honoured; more patients add pages, never smaller fonts.
+ const printScale=69,bodyBudget=(210/25.4*72-108)/(printScale/100)-headerHeight-12;
+ const footerHeight=footer.reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
  const breaks=[];let used=0;
  blocks.forEach((block,i)=>{
   const first=12+i*5,height=block.height*5,last=i===blocks.length-1;
@@ -87,7 +90,7 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
   setCell(cloned[2],'B',ic);setCell(cloned[3],'B',mrn);if(block.part)setCell(cloned[4],'B','Sambungan');
   used+=height;
  });
- const delta=(blocks.length-1)*5,footerStart=17+delta,lastRow=22+delta;
+ const delta=(blocks.length-2)*5,footerStart=22+delta,lastRow=27+delta;
  if(used+footerHeight>bodyBudget)breaks.push(footerStart-1);
  cloneRows(footer,delta);footerMerges.forEach(ref=>addMerge(shift(ref,delta)));
  merges.setAttribute('count',String(all(merges,'mergeCell').length));
@@ -96,7 +99,7 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
   let item=all(names,'definedName').find(n=>n.getAttribute('name')===name);if(!item){item=book.createElementNS(ns,'definedName');item.setAttribute('name',name);item.setAttribute('localSheetId','0');names.append(item)}item.textContent=value;
  }
  all(sheet,'pageSetUpPr').forEach(p=>p.setAttribute('fitToPage','0'));
- all(sheet,'pageSetup').forEach(p=>{p.setAttribute('paperSize','9');p.setAttribute('orientation','landscape');p.setAttribute('scale','100');p.setAttribute('fitToHeight','0');p.removeAttribute('fitToWidth')});
+ all(sheet,'pageSetup').forEach(p=>{p.setAttribute('paperSize','9');p.setAttribute('orientation','landscape');p.setAttribute('scale',String(printScale));p.setAttribute('fitToHeight','0');p.removeAttribute('fitToWidth')});
  for(const tag of ['rowBreaks','colBreaks'])all(sheet,tag).forEach(p=>p.remove());
  if(breaks.length){const element=sheet.createElementNS(ns,'rowBreaks');element.setAttribute('count',breaks.length);element.setAttribute('manualBreakCount',breaks.length);for(const id of breaks){const b=sheet.createElementNS(ns,'brk');for(const[k,v]of Object.entries({id,min:0,max:16383,man:1}))b.setAttribute(k,v);element.append(b)}sheet.documentElement.insertBefore(element,all(sheet,'drawing')[0]||null)}
  entries['xl/worksheets/sheet1.xml']=serializer.serializeToString(sheet);entries['xl/workbook.xml']=serializer.serializeToString(book);entries['xl/styles.xml']=serializer.serializeToString(styles);
@@ -123,7 +126,8 @@ async function generateOtList(sessionId){
   const stillActive=()=>{if(abandoned||document.hidden||!form.isConnected||token!==owner||!['ADMIN','WEBMASTER'].includes(user?.role))throw Error('Export cancelled. Reopen Generate OT List when ready.')};
   try{
    stillActive();
-   const response=await fetch('assets/ot-list-template.xlsx?v=069',{cache:'no-store'});
+   // Keep the old asset intact for already-open tabs using the earlier layout.
+   const response=await fetch('assets/ot-list-template-v070.xlsx',{cache:'no-store'});
    if(!response.ok)throw Error('Unable to load Excel template.');
    const template=await response.arrayBuffer();stillActive();
    result=await rpc('orl_ic_ot_export',{p_session_token:owner,p_password:data.password,p_session_id:sessionId,p_generation:generation});

@@ -23,6 +23,6 @@ test('C6 migration and gateway keep exact identity in ciphertext, hash exact sea
   const html=read('docs/index.html'),app=read('docs/app.js');
   assert.match(migration,/patient_ic=orl_private\.c1_mask_ic\(patient_ic\)/);assert.match(migration,/plaintext_rows/);
   assert.match(migration,/ORL_IC_ENCRYPTED_V1/);assert.match(gateway,/prepareC6Backup/);assert.match(gateway,/searchHash/);
-  assert.match(html,/app\.js\?v=082/);assert.match(app,/ic-client\.mjs\?v=078/);
+  assert.match(html,/app\.js\?v=083/);assert.match(app,/ic-client\.mjs\?v=078/);
   assert.doesNotMatch(gateway,/console\.(?:log|error)[^\n]*patient_ic/i);
 });

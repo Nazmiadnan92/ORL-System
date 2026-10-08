@@ -10,7 +10,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
   const chunk=(start,end)=>app.slice(app.indexOf(start),app.indexOf(end,app.indexOf(start)));
   await page.addScriptTag({content:chunk('function maskPatientIc(','function xmlText(')+chunk('function zipCrc32(','function generateOtList(')
    +chunk('function patientNameCase(','function normalizeClinicalFields(')+clinical.slice(0,clinical.indexOf('let statsOffset='))});
-  const bytes=Array.from(await readFile(new URL('../../docs/assets/ot-list-template.xlsx',import.meta.url)));
+  const bytes=Array.from(await readFile(new URL('../../docs/assets/ot-list-template-v070.xlsx',import.meta.url)));
   await page.evaluate(bytes=>{
    window.template=new Uint8Array(bytes).buffer;window.user={role:'ADMIN'};window.token='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
    window.sid='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';window.generation='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -40,11 +40,16 @@ test('actual Excel builder and export modal: full IC only after protected respon
      const blob=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},list,{fullIc});
      const entries=await readOtTemplate(await blob.arrayBuffer()),decode=new TextDecoder(),xml=decode.decode(entries['xl/worksheets/sheet1.xml']);
      const doc=new DOMParser().parseFromString(xml,'application/xml'),setup=doc.querySelector('pageSetup');
-     out.push({n,fullIc,count:[...doc.querySelectorAll('c')].filter(c=>c.getAttribute('r').match(/^B\d+$/)&&c.textContent.includes('Synthetic Patient')).length,
+     const rows=[...doc.querySelectorAll('sheetData row')],lastRow=Number(rows.at(-1).getAttribute('r'));
+     const height=(from,to)=>rows.filter(r=>Number(r.getAttribute('r'))>=from&&Number(r.getAttribute('r'))<=to).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
+     const ends=[...[...doc.querySelectorAll('rowBreaks brk')].map(b=>Number(b.getAttribute('id'))),lastRow];let start=12;
+     const pagesFit=ends.every(end=>{const fits=height(1,11)+height(start,end)<=(210/25.4*72-108)/.69;start=end+1;return fits});
+     const shared=entries['xl/sharedStrings.xml']?[...decodeXml(entries['xl/sharedStrings.xml']).querySelectorAll('si')].map(s=>s.textContent):[];
+     out.push({n,fullIc,pagesFit,footerOnce:[...doc.querySelectorAll('c')].filter(c=>(c.getAttribute('t')==='s'?shared[Number(c.querySelector('v')?.textContent)]:c.textContent)==='(DR MOHD AYZAM BIN HJ AHMAD)').length===1,count:[...doc.querySelectorAll('c')].filter(c=>c.getAttribute('r').match(/^B\d+$/)&&c.textContent.includes('Synthetic Patient')).length,
       hasRaw:xml.includes(sample.patient_ic),hasMask:xml.includes('010203-**-****'),formulas:doc.querySelectorAll('f').length,
       fontDeltas:[...decodeXml(entries['xl/styles.xml']).querySelectorAll('fonts font sz')].map((s,i)=>Number(s.getAttribute('val'))-originalSizes[i]),
       a4:setup.getAttribute('paperSize')==='9',landscape:setup.getAttribute('orientation')==='landscape',
-      readablePages:setup.getAttribute('scale')==='100'&&setup.getAttribute('fitToHeight')==='0'&&doc.querySelector('pageSetUpPr').getAttribute('fitToPage')==='0',
+      readablePages:setup.getAttribute('scale')==='69'&&setup.getAttribute('fitToHeight')==='0'&&doc.querySelector('pageSetUpPr').getAttribute('fitToPage')==='0',
       wholeBlocks:[...doc.querySelectorAll('rowBreaks brk')].every(b=>(Number(b.getAttribute('id'))-11)%5===0),
       repeatedHeader:decode.decode(entries['xl/workbook.xml']).includes('$1:$11'),
       dynamicDate:doc.querySelector('[r="A4"]').textContent.includes('2030'),
@@ -52,12 +57,12 @@ test('actual Excel builder and export modal: full IC only after protected respon
     }
    }return out;
   });
-  for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.n>0&&row.fullIc);assert.equal(row.hasMask,row.n>0&&!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea);assert.ok(row.fontDeltas.every(n=>n===0));assert.ok(row.a4&&row.landscape&&row.readablePages&&row.wholeBlocks&&row.repeatedHeader&&row.dynamicDate)}
+  for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.n>0&&row.fullIc);assert.equal(row.hasMask,row.n>0&&!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea&&row.pagesFit&&row.footerOnce);assert.ok(row.fontDeltas.every(n=>n===0));assert.ok(row.a4&&row.landscape&&row.readablePages&&row.wholeBlocks&&row.repeatedHeader&&row.dynamicDate)}
   const layout=await page.evaluate(async()=>{
    const parts=await readOtTemplate(template.slice(0)),decode=new TextDecoder(),parse=p=>new DOMParser().parseFromString(decode.decode(p),'application/xml');
    const doc=parse(parts['xl/worksheets/sheet1.xml']),styles=parse(parts['xl/styles.xml']),book=parse(parts['xl/workbook.xml']);
-   const safeHeaders=['No','Nama Pesakit\nNombor IC\nMRN','Umur','Wad\nJantina\nBerat\nBadan','Diagnosis Utama +\nDiagnosis Lain','Prosedur','Catatan Khas\nSpecial\nPerioperative\n(Remarks)','Jangka\nMasa (MM:SS)\nGA/LA\nDarah','Pakar Bedah /\nPegawai\nPerubatan','Sub'];
-   const safeFixed=['JABATAN OTORINOLARINGOLOGI, HOSPITAL SULTANAH','BAHIYAH, ALOR SETAR, KEDAH.','PEMBEDAHAN : DEWAN BEDAH UTAMA - OR 2','TARIKH: ____________________','PAKAR BEDAH: DR ZULKIFLI, DR AYZAM, DR ZAMBRI, DATIN DR FAIZAH, DR YEOH,','DR HUSNA, DR FAIZ, DR NABIHAH, DR K. NAIMAH, DR NG WEI QI, DR AIDAYANTI','PARAMEDIK:','(DR MOHD AYZAM BIN HJ AHMAD)','Perakuan Pendaftaran: 38861','Ketua Jabatan & Pakar Perunding ORL','Hospital Sultanah Bahiyah, Alor Setar, Kedah.'];
+   const safeHeaders=['No','Nama Pesakit','Nombor IC','MRN','Umur','Wad','Jantina','Berat','Badan','Diagnosis Utama +','Diagnosis Lain','Prosedur','Catatan Khas','Special','Perioperative','(Remarks)','Jangka','Masa (MM:SS)','GA/LA','Darah','Pakar Bedah /','Pegawai Perubatan','Sub'];
+   const safeFixed=['JABATAN OTORINOLARINGOLOGI, HOSPITAL SULTANAH','BAHIYAH, ALOR SETAR, KEDAH.','PEMBEDAHAN : DEWAN BEDAH UTAMA - OR 2','TARIKH: ____________________','PAKAR BEDAH: DR ZULKIFLI, DR AYZAM, DR ZAMBRI, DATIN DR FAIZAH, DR YEOH,','DR HUSNA, DR FAIZ, DR NABIHAH, DR K. NAIMAH, DR NG WEI QI, DR AIDAYANTI','PARAMEDIK: ','(DR MOHD AYZAM BIN HJ AHMAD)','Perakuan Pendaftaran: 38861','Ketua Jabatan & Pakar Perunding ORL','Hospital Sultanah Bahiyah, Alor Setar, Kedah.'];
    const allowed=new Set([...safeHeaders,...safeFixed]),strings=parts['xl/sharedStrings.xml']?[...parse(parts['xl/sharedStrings.xml']).querySelectorAll('si')].map(s=>s.textContent):[];
    const values=[...doc.querySelectorAll('c')].map(c=>c.getAttribute('t')==='s'?strings[Number(c.querySelector('v').textContent)]:c.querySelector('t')?.textContent||'');
    const cellsSafe=values.filter(Boolean).every(v=>allowed.has(v)),stringsSafe=strings.filter(Boolean).every(v=>allowed.has(v));
@@ -67,7 +72,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
    const long='SYNTHETIC LONG CLINICAL DESCRIPTION '.repeat(100)+'END MARKER',patient={...sample,diagnosis:long,surgery:long};
    const output=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[patient],{fullIc:true}),generated=await readOtTemplate(await output.arrayBuffer()),clinical=parse(generated['xl/worksheets/sheet1.xml']);
    const allCells=[...clinical.querySelectorAll('c')],columnText=col=>allCells.filter(c=>new RegExp('^'+col+'[0-9]+$').test(c.getAttribute('r'))&&Number(c.getAttribute('r').match(/\d+/)[0])>=12).map(c=>c.querySelector('t')?.textContent||'').join('');
-   return{cellsSafe,stringsSafe,metaSafe,blankPatientRows:[...doc.querySelectorAll('row')].filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=16).every(r=>![...r.querySelectorAll('c')].some(c=>c.querySelector('v,t'))),
+   return{cellsSafe,stringsSafe,metaSafe,blankPatientRows:[...doc.querySelectorAll('row')].filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=21).every(r=>![...r.querySelectorAll('c')].some(c=>c.querySelector('v,t'))),
     widthPx,normalFont:normalFont.querySelector('name').getAttribute('val'),normalSize:normalFont.querySelector('sz').getAttribute('val'),normalFontId:normalXf.getAttribute('fontId'),
     exactDiagnosis:columnText('E')===long,exactProcedure:columnText('F')===long,continuation:clinical.documentElement.textContent.includes('Sambungan'),
     identifiedBlocks:allCells.filter(c=>/^A[0-9]+$/.test(c.getAttribute('r'))&&c.querySelector('t')?.textContent==='1').every(c=>{
@@ -77,10 +82,15 @@ test('actual Excel builder and export modal: full IC only after protected respon
     breaks:[...clinical.querySelectorAll('rowBreaks brk')].map(b=>Number(b.getAttribute('id'))),maxHeight:Math.max(...[...clinical.querySelectorAll('row')].map(r=>Number(r.getAttribute('ht'))||15))};
   });
   assert.ok(layout.cellsSafe&&layout.stringsSafe&&layout.metaSafe&&layout.blankPatientRows,'Public template contains only approved static labels and blank patient cells');
-  assert.equal(layout.normalFont,'Carlito');assert.equal(layout.normalSize,'11');assert.equal(layout.normalFontId,'0');
-  assert.ok(layout.widthPx<=1044&&layout.widthPx*.75<805.9,'Native normal-font column widths fit A4 at 100%');
+  assert.equal(layout.normalFont,'Carlito');assert.equal(layout.normalSize,'12');assert.equal(layout.normalFontId,'0');
+  assert.equal(layout.widthPx,1268,'Column widths retain the uploaded template proportions');
   assert.ok(layout.exactDiagnosis&&layout.exactProcedure&&layout.continuation&&layout.identifiedBlocks,'Long clinical content continues without loss and keeps patient identifiers');
-  assert.ok(layout.breaks.length>0&&layout.breaks.every(id=>(id-11)%5===0));assert.ok(layout.maxHeight<50);
+  assert.ok(layout.breaks.length>0&&layout.breaks.every(id=>(id-11)%5===0));assert.ok(layout.maxHeight<80);
+  const staleRejected=await page.evaluate(async()=>{
+   const parts=await readOtTemplate(template.slice(0));
+   parts['xl/worksheets/sheet1.xml']=new TextDecoder().decode(parts['xl/worksheets/sheet1.xml']).replace('B27:E27','B26:E26');
+   try{await buildOtExcel(await createDocxBlob(parts).arrayBuffer(),{ot_date:'2030-01-01'},[sample]);return false}catch(e){return /template version mismatch/.test(e.message)}
+  });assert.ok(staleRejected,'Mismatched template cannot silently produce the wrong footer');
   if(process.env.ORL_OT_LAYOUT_QA_DIR){
    await mkdir(process.env.ORL_OT_LAYOUT_QA_DIR,{recursive:true});
    for(const n of [0,1,6,11,12,16]){

@@ -15,6 +15,6 @@ test('061 is baseline-pinned and backup-first; only booking destinations change,
  assert.match(ui,/if\(target&&isPastOtDate\(target\.date\)\)/);
  assert.match(booking,/s\.status==='ACTIVE'&&!isPastOtDate\(s\.ot_date\)/);
  assert.match(booking,/setInterval\(refreshPastOtCards,30000\)/);
- assert.match(html,/app\.js\?v=082/);assert.match(html,/booking-workflow\.js\?v=002/);assert.match(html,/schedule\.css\?v=071/);
- assert.ok(html.indexOf('booking-workflow.js?v=002')<html.indexOf('app.js?v=082'));
+ assert.match(html,/app\.js\?v=083/);assert.match(html,/booking-workflow\.js\?v=003/);assert.match(html,/schedule\.css\?v=072/);
+ assert.ok(html.indexOf('booking-workflow.js?v=003')<html.indexOf('app.js?v=083'));
 });
