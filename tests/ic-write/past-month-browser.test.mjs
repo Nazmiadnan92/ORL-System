@@ -33,7 +33,8 @@ test('month cards follow Malaysia month/year, keep current month green, preserve
   assert.doesNotMatch(await month('2026-09').ariaSnapshot(),/Available|Special/);
   assert.equal(await color(month('2026-10')),'rgb(220, 252, 231)');
   assert.match(await month('2026-10').innerText(),/Main: 0 Available/);
-  assert.doesNotMatch(await month('2026-10').innerText(),/PAST|Special/);
+  assert.doesNotMatch(await month('2026-10').innerText(),/PAST/);
+  assert.match(await month('2026-10').innerText(),/Special: 4 Available/);
   assert.equal(await color(month('2026-11')),'rgb(254, 226, 226)');
   assert.match(await month('2026-12').innerText(),/Availability unavailable/);
   for(const role of ['ADMIN','WEBMASTER']){

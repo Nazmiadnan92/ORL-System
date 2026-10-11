@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility)
+if($WithSpecialVisibility){$WithPastOt=$true}
 if($WithPastOt){$WithSharedStatistics=$true}
 if($WithSharedStatistics){$WithStatistics=$true}
 if($WithStatistics){$WithBookingWorkflow=$true}
@@ -88,6 +89,12 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithPastOt){
     & node --test (Join-Path $PSScriptRoot 'past-ot-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Past OT booking protection integration failed.'}
+  }
+  if($WithSpecialVisibility){
+    & node --test (Join-Path $PSScriptRoot 'special-visibility-release.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Staff Special slot visibility release safety tests failed.'}
+    & node --test (Join-Path $PSScriptRoot 'special-visibility-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Staff Special slot visibility integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

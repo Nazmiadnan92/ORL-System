@@ -623,7 +623,7 @@ function submit(){const c=$('#content');c.innerHTML=head('Submit Request','All p
 function editSlotField(label,name,type='text',wide='',editable=true,required=true){return `<div class="field ${wide}"><label>${label}<input name="${name}" type="${type}" ${editable?'':'readonly aria-readonly="true"'} ${editable&&required?'required':''}></label></div>`}
 function monthAvailability(row){
   if(row.main_available==null)return '<small>Availability unavailable</small>';
-  return `<small>Main: ${Number(row.main_available)} Available</small>`+(user.role!=='STAFF'&&row.special_available!=null?`<small>Special: ${Number(row.special_available)} Available</small>`:'');
+  return `<small>Main: ${Number(row.main_available)} Available</small>`+(row.special_available!=null?`<small>Special: ${Number(row.special_available)} Available</small>`:'');
 }
 function scheduleMonthTabs(counts,year,selectedMonth){
   const at=new Date();return counts.map(row=>{
@@ -634,7 +634,7 @@ function scheduleMonthTabs(counts,year,selectedMonth){
 function sessionAvailability(session){
   if(isPastOtDate(session.ot_date))return '<span class="past-notice">Past date · closed to new requests</span>';const count=type=>session.status==='ACTIVE'?session.slots.filter(sl=>sl.type===type&&sl.status==='AVAILABLE'&&!sl.request_id).length:0;
   const main=count('MAIN');
-  return `<span class="main-availability ${main>0?'has-space':'no-space'}">Main: ${main} Available</span>`+(user.role!=='STAFF'?`<span>Special: ${count('SPECIAL')} Available</span>`:'');
+  return `<span class="main-availability ${main>0?'has-space':'no-space'}">Main: ${main} Available</span><span>Special: ${count('SPECIAL')} Available</span>`;
 }
 function specialDayAvailability(day){
   if(isPastOtDate(day.date))return '<span class="special-availability past-notice">PAST · No new requests</span>';const badge=(text,kind)=>`<span class="special-availability ${kind}">${esc(text)}</span>`;
