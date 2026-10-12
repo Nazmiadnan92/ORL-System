@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone)
+if($WithSharedPostpone){$WithSpecialVisibility=$true}
 if($WithSpecialVisibility){$WithPastOt=$true}
 if($WithPastOt){$WithSharedStatistics=$true}
 if($WithSharedStatistics){$WithStatistics=$true}
@@ -95,6 +96,12 @@ create function extensions.http_get(varchar) returns extensions.http_response la
     if($LASTEXITCODE-ne0){throw 'Staff Special slot visibility release safety tests failed.'}
     & node --test (Join-Path $PSScriptRoot 'special-visibility-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Staff Special slot visibility integration failed.'}
+  }
+  if($WithSharedPostpone){
+    & node --test (Join-Path $PSScriptRoot 'shared-postpone-release.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Staff shared postponement release safety tests failed.'}
+    & node --test (Join-Path $PSScriptRoot 'shared-postpone-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Staff shared postponement integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

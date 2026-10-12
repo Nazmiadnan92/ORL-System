@@ -14,3 +14,5 @@
 /security/release/audit-past-ot.sql text eol=lf
 /supabase/062_staff_special_slot_visibility.sql text eol=lf
 /security/release/audit-special-visibility.sql text eol=lf
+/supabase/063_staff_shared_postpone.sql text eol=lf
+/security/release/audit-shared-postpone.sql text eol=lf
