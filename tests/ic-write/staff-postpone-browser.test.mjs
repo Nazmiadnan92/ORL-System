@@ -35,7 +35,7 @@ test('Staff postpones any creator to Main with unchanged cross-owner details; ow
    window.formatSystemDate=x=>x;window.protectedIcEnabled=()=>true;window.bindAgeToIc=()=>{};
    window.modal=html=>{$('#modalBody').innerHTML=html;$('#modal').hidden=false};
    window.closeModal=()=>{$('#modal').hidden=true};window.toast=x=>messages.push(x);
-   window.reloadSchedule=async()=>{refreshes++};window._scheduleYM={year:2027,month:1};
+   window.reloadSchedule=async()=>{refreshes++};window.showPostponedPatient=async()=>true;window._scheduleYM={year:2027,month:1};
    window.fixture=(creator,creatorRole)=>{
     const record={id:sourceId,request_id:rid,type:'SPECIAL',number:1,status:'CONFIRMED',created_by:creator,created_by_role:creatorRole,
      patient_ic:'900101-**-****',age:36,age_months:0,patient_name:'Synthetic patient',mrn:'TEST-ONLY',surgery:'TEST SURGERY',diagnosis:'TEST DIAGNOSIS',

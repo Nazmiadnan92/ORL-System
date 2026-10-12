@@ -98,17 +98,17 @@ test('063: actual Staff Postpone form/router/gateway moves any creator to Main w
  // Exercise the actual app form, including disabled IC field, captured record
  // revision/generation and the cross-owner Staff move-only payload.
  const app=readFileSync(new URL('../../docs/app.js',import.meta.url),'utf8');
- const active=name=>app.split(/\r?\n/).filter(line=>line.startsWith('function '+name+'(')||line.startsWith('async function '+name+'(')).at(-1);
+ const active=name=>{const start=app.lastIndexOf('function '+name+'('),rest=app.slice(app.slice(start-6,start)==='async '?start-6:start),end=rest.search(/\n(?:async )?function /);return end<0?rest:rest.slice(0,end)};
  const protectedHelpers=app.slice(app.indexOf('function configureProtectedIcForm('),app.indexOf('async function carryProtectedIcChoice('));
  const formHarness=rows=>{
   let form;const messages=[],controls={'#postMonth':{},'#postYear':{}},doc={createTextNode:text=>({text}),createElement:tag=>({tag,children:[],append(...items){this.children.push(...items)},addEventListener(type,fn){this[type]=fn}})};
   const ctx=vm.createContext({token,user:{role:'STAFF',user_id:actors.STAFF_A},window:{_schedule:rows,_scheduleYM:{year:2094,month:6}},postponeBusy:false,
    $:selector=>{const match=selector.match(/^#postponeForm \[name="(\w+)"\]$/);return match?form.elements[match[1]]:selector==='#postponeForm'?form:controls[selector]},
-   modal:()=>{const elements={};for(const name of ['patient_ic','age','age_months','mrn','patient_name','surgery','diagnosis','doctor','specialist','sub_specialty','phone','remark','reason'])elements[name]={value:'',dataset:{},parentElement:{after(){}},dispatchEvent(){}};form={elements}},
+   modal:()=>{const elements={};for(const name of ['patient_ic','age','age_months','mrn','patient_name','surgery','diagnosis','doctor','specialist','sub_specialty','phone','remark','reason'])elements[name]={value:'',dataset:{},parentElement:{after(){}},dispatchEvent(){}};form={elements,isConnected:true}},
    protectedIcEnabled:()=>true,protectedIcClient:async()=>({bindProtectedIcField:(f,options)=>bindProtectedIcField(f,{...options,document:doc})}),
    maskPatientIc:value=>value,field:()=>'',editSlotField:()=>'',editSubspecialtyField:()=>'',ageFields:()=>'',months:[],esc:value=>String(value),formatSystemDate:value=>value,patientNameCase:value=>value,
    bindAgeToIc:()=>{},bindClinicalFormatting:()=>{},normalizeClinicalFields:()=>{},isPastOtDate:date=>typeof date==='string'&&date<today,
-   loadPostponeSlots:()=>{},closeModal:()=>{},reloadSchedule:async()=>{},toast:message=>messages.push(message),rpc:router,Event,
+   loadPostponeSlots:()=>{},closeModal:()=>{},reloadSchedule:async()=>{},showPostponedPatient:async()=>true,toast:message=>messages.push(message),rpc:router,Event,
    FormData:class{constructor(f){this.rows=Object.entries(f.elements).filter(([,el])=>!el.disabled).map(([name,el])=>[name,String(el.value)])}[Symbol.iterator](){return this.rows[Symbol.iterator]()}}
   });
   vm.runInContext(protectedHelpers+'\n'+active('postponeSlot')+'\n'+active('completePostpone'),ctx);

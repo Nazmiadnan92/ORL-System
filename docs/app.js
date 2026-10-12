@@ -175,18 +175,21 @@ async function changeOtMonth(step){
   }finally{otMonthChanging=false}
 }
 async function schedule(year,month){
-  const current=malaysiaToday(),saved=savedScheduleView(),y=Number(year)||saved?.year||current.year,m=Number(month)||saved?.month||current.month,c=$('#content');
+  const current=malaysiaToday(),saved=savedScheduleView(),y=Number(year)||saved?.year||current.year,m=Number(month)||saved?.month||current.month,c=$('#content'),owner=token;
   rememberScheduleView(y,m);
   c.innerHTML=head('OT Schedule')+`<div class="schedule-navigation card"><div class="year-navigation"><span class="schedule-label">Year</span><div class="year-boxes">${scheduleYearBoxes(y)}</div></div><div class="schedule-shortcuts"><button class="secondary" onclick="showCurrentScheduleMonth()">Today / Current Month</button><button id="nearestAvailableBtn" class="primary" onclick="findNearestAvailableSlot(this)">Nearest Available Slot</button></div><div class="schedule-info">OT Days: <b>Sunday & Wednesday</b> &nbsp;|&nbsp; Main Slots: <b>${y===2026?10:5}</b> &nbsp;|&nbsp; Special Slots: <b>2</b></div></div><div id="monthTabs" class="month-tabs"></div><div id="specialDays"></div><div id="scheduleList" class="schedule old-style"><div class="card empty">Loading…</div></div>`;
   c.insertAdjacentHTML('beforeend',scheduleMonthFooter(y,m));
   $$('#content .admin').forEach(x=>x.hidden=user.role==='STAFF');
+  const list=$('#scheduleList'),stillCurrent=()=>token===owner&&list.isConnected&&$('#scheduleList')===list;
   try{
-    const [rows,hs,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:token,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:token}),rpc('orl_get_year_month_counts',{p_session_token:token,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:token,p_year:y})]);
+    const [rows,hs,counts,specials]=await Promise.all([rpc('orl_get_schedule',{p_session_token:owner,p_year:y,p_month:m}),rpc('orl_list_holidays',{p_session_token:owner}),rpc('orl_get_year_month_counts',{p_session_token:owner,p_year:y}),rpc('orl_get_special_ot_days',{p_session_token:owner,p_year:y})]);
+    if(!stillCurrent())return false;
     window._schedule=rows;window._specialOtDays=specials;rememberScheduleView(y,m);window._holidays=hs;
     $('#monthTabs').innerHTML=scheduleMonthTabs(counts,y,m);
     $('#specialDays').innerHTML=renderSpecialDays(specials);
-    $('#scheduleList').innerHTML=rows.map(s=>scheduleCard(s,hs)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
-  }catch(e){$('#scheduleList').innerHTML=`<div class="card empty">${esc(e.message)}<br>Workflow package 009 must be installed first.</div>`}
+    list.innerHTML=rows.map(s=>scheduleCard(s,hs)).join('')||'<div class="card empty">No OT sessions for this month.</div>';
+    return true;
+  }catch(e){if(stillCurrent())list.innerHTML=`<div class="card empty">${esc(e.message)}<br>Workflow package 009 must be installed first.</div>`;return false}
 }
 async function findNearestAvailableSlot(button){
   const current=malaysiaToday(),originalText=button?.textContent||'Nearest Available Slot';
@@ -267,7 +270,58 @@ async function clearSlot(id){
 function postponeSlot(id){const all=(window._schedule||[]).flatMap(x=>x.slots),x=all.find(s=>s.id===id),session=(window._schedule||[]).find(s=>s.slots.some(a=>a.id===id)),y=window._scheduleYM.year,staff=user.role==='STAFF',crossOwner=staff&&x.created_by!==user.user_id;modal(`<h2>🔁 Postpone Patient</h2><div class="card">Original slot: <b>${session.ot_date} — ${x.type} Slot ${x.number}</b></div><form id="postponeForm">${staff?`<p class="edit-permission-note">${crossOwner?'This request was created by another user. You can postpone it to an available Main slot. Patient details stay unchanged, and the new slot requires Admin approval.':'Staff may edit Surgery / Procedure and Diagnosis only. The new Main slot requires Admin approval.'}</p>`:''}<h3>Patient Details${crossOwner?' (read-only)':staff?'':' (editable)'}</h3><div class="grid">${field('Patient IC','patient_ic')}${ageFields(staff)}${field('MRN','mrn')}${field('Patient Name','patient_name')}${field('Surgery / Procedure','surgery')}${field('Diagnosis','diagnosis')}${field('Doctor','doctor')}${field('Specialist','specialist')}${field('Sub-specialty','sub_specialty')}${field('Phone','phone')}<div class="field wide"><label>Remark<textarea name="remark"></textarea></label></div></div><h3>Move To New Date</h3><div class="toolbar"><label>New Year<select id="postYear">${[2026,2027,2028,2029,2030,2031].map(v=>`<option ${v===y?'selected':''}>${v}</option>`).join('')}</select></label><label>New Month<select id="postMonth">${months.map((v,i)=>`<option value="${i+1}">${v}</option>`).join('')}</select></label></div><div class="field"><label>Postpone Reason<input name="reason" placeholder="e.g. Patient unwell / OT full" required></label></div><div id="postSlots" class="card empty">Choose year and month.</div></form>`);['patient_ic','mrn','patient_name','surgery','diagnosis','doctor','specialist','sub_specialty','phone','remark'].forEach(k=>{$(`#postponeForm [name="${k}"]`).value=x[k]||''});const ageForm=$('#postponeForm');ageForm._postponeMoveOnly=crossOwner;if(staff){for(const key of ['patient_ic','mrn','patient_name','surgery','diagnosis','doctor','specialist','sub_specialty','phone','remark'])ageForm.elements[key].readOnly=crossOwner||!['surgery','diagnosis'].includes(key);ageForm.elements.patient_ic.value=maskPatientIc(x.patient_ic);window._postponePatientIc=x.patient_ic}else window._postponePatientIc=null;ageForm.elements.age.value=x.age??'';ageForm.elements.age_months.value=x.age_months??'';if(!staff)bindAgeToIc(ageForm,new Date(session.ot_date+'T12:00:00'));bindClinicalFormatting(ageForm);configureProtectedIcForm(ageForm,x,!staff);$('#postMonth').value=window._scheduleYM.month;$('#postYear').onchange=loadPostponeSlots;$('#postMonth').onchange=loadPostponeSlots;window._postponeFrom=id;window._postponeExpected=x.request_id;loadPostponeSlots()}
 async function loadPostponeSlots(){const y=+$('#postYear').value,m=+$('#postMonth').value,box=$('#postSlots'),owner=token,seq=window._postLoadSequence=(window._postLoadSequence||0)+1;box.innerHTML='Loading available slots…';try{const rows=await rpc('orl_get_schedule',{p_session_token:owner,p_year:y,p_month:m});if(token!==owner||!box.isConnected||seq!==window._postLoadSequence)return;window._postponeDates=new Map(rows.flatMap(s=>s.slots.map(x=>[x.id,s.ot_date])));box.innerHTML=rows.filter(s=>s.status==='ACTIVE'&&!isPastOtDate(s.ot_date)).map(s=>`<div class="post-date ${s.special_title?'special-day':''}">${bookingDateHeading(s)}<div class="slots">${s.slots.filter(x=>x.status==='AVAILABLE'&&(user.role!=='STAFF'||x.type!=='SPECIAL')).map(x=>`<button type="button" class="slot ${x.type==='SPECIAL'?'special':''}" onclick="completePostpone('${x.id}')">${x.type==='SPECIAL'?'★ Special':'Main'} S${x.number}</button>`).join('')||'<span class="muted">No available slots</span>'}</div></div>`).join('')||'No active OT dates with available slots.'}catch(e){if(token===owner&&box.isConnected&&seq===window._postLoadSequence)box.textContent=e.message}}
 let postponeBusy=false;
-async function completePostpone(toId){if(postponeBusy)return;if(isPastOtDate(window._postponeDates?.get(toId))){toast('Past OT dates are closed to new bookings.');return}const expected=window._postponeExpected,from=window._postponeFrom;if(!expected){toast('Refresh the schedule and select the patient again.');return}const form=$('#postponeForm'),d=Object.fromEntries(new FormData(form)),reason=d.reason;if(!reason?.trim()){toast('Please enter a postpone reason.');return}delete d.reason;if(user.role==='STAFF'){for(const key of Object.keys(d))if(form._postponeMoveOnly||!['surgery','diagnosis'].includes(key))delete d[key]}normalizeClinicalFields(d);postponeBusy=true;try{const result=await rpc('orl_move_postponed_checked',{p_session_token:token,p_from_slot_id:from,p_to_slot_id:toId,...await protectedIcArgs(form,d),p_reason:reason,p_expected_request_id:expected});window._postponeExpected=null;window._postponePatientIc=null;closeModal();toast(result==='RESERVED'?'New slot reserved for Admin confirmation.':'Patient postponed to the new slot.');await reloadSchedule()}catch(e){toast(e.message);if(e.message.includes('selected OT patient has changed')){window._postponeExpected=null;window._postponePatientIc=null;closeModal();await reloadSchedule()}}finally{postponeBusy=false}}
+async function completePostpone(toId){
+  if(postponeBusy)return;
+  const destinationDate=window._postponeDates?.get(toId),owner=token;
+  if(isPastOtDate(destinationDate)){toast('Past OT dates are closed to new bookings.');return}
+  const expected=window._postponeExpected,from=window._postponeFrom;
+  if(!expected){toast('Refresh the schedule and select the patient again.');return}
+  const form=$('#postponeForm'),d=Object.fromEntries(new FormData(form)),reason=d.reason;
+  if(!reason?.trim()){toast('Please enter a postpone reason.');return}
+  delete d.reason;
+  if(user.role==='STAFF'){for(const key of Object.keys(d))if(form._postponeMoveOnly||!['surgery','diagnosis'].includes(key))delete d[key]}
+  normalizeClinicalFields(d);postponeBusy=true;
+  try{
+    const icArgs=await protectedIcArgs(form,d);
+    if(token!==owner||!form.isConnected)return;
+    const result=await rpc('orl_move_postponed_checked',{p_session_token:owner,p_from_slot_id:from,p_to_slot_id:toId,...icArgs,p_reason:reason,p_expected_request_id:expected});
+    if(token!==owner||!form.isConnected)return;
+    if(!['RESERVED','CONFIRMED'].includes(result))throw Error('Postpone result was not confirmed. Reload the schedule and review before retrying.');
+    window._postponeExpected=null;window._postponePatientIc=null;closeModal();
+    toast(result==='RESERVED'?'New slot reserved for Admin confirmation.':'Patient postponed to the new slot.');
+    await showPostponedPatient(destinationDate,expected,owner);
+  }catch(e){
+    if(token!==owner)return;
+    toast(e.message);
+    if(e.message.includes('selected OT patient has changed')){window._postponeExpected=null;window._postponePatientIc=null;closeModal();await reloadSchedule()}
+  }finally{postponeBusy=false}
+}
+async function showPostponedPatient(date,requestId,owner){
+  if(token!==owner)return false;
+  const notice=()=>{if(token===owner)toast('Postpone was saved, but the patient could not be shown at the new slot. Reload the schedule and check; do not postpone again.')};
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date||'')){notice();return false}
+  const [year,month]=date.split('-').map(Number);
+  try{
+    const loading=schedule(year,month),list=$('#scheduleList'),loaded=await loading;
+    if(token!==owner||!list?.isConnected||$('#scheduleList')!==list||window._scheduleYM?.year!==year||window._scheduleYM?.month!==month)return false;
+    if(!loaded){notice();return false}
+    const session=(window._schedule||[]).find(s=>s.ot_date===date);
+    // Same-day Main compaction may change the final slot; follow the request, not its old slot number.
+    const slot=session?.slots.find(s=>s.request_id===requestId);
+    const card=document.getElementById('d-'+date);
+    const row=slot&&card?[...card.querySelectorAll('[data-request-id]')].find(r=>r.dataset.requestId===requestId):null;
+    if(!row){notice();return false}
+    card.classList.add('open');
+    const button=card.querySelector('.session-toggle');if(button)button.textContent='Hide OT ▴';
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    if(token!==owner||!row.isConnected||$('#scheduleList')!==list)return false;
+    const name=row.querySelector('.patient')||row;
+    name.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center',inline:'nearest'});
+    row.classList.remove('request-jump-highlight');void row.offsetWidth;row.classList.add('request-jump-highlight');
+    setTimeout(()=>row.classList.remove('request-jump-highlight'),2600);
+    return true;
+  }catch{notice();return false}
+}
 let reassignSelection=null;
 function reassignSlot(sessionId,fromId){
   reassignSelection=null;

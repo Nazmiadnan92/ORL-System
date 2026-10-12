@@ -7,8 +7,14 @@ import * as client from '../../docs/ic-client.mjs';
 const app = readFileSync(new URL('../../docs/app.js', import.meta.url), 'utf8');
 const dateHelpers=readFileSync(new URL('../../docs/booking-workflow.js',import.meta.url),'utf8').split('function refreshPastOtCards')[0];
 const helpers = app.slice(app.indexOf('let protectedIcClientPromise;'), app.indexOf('function toast('));
-const active = name => app.split(/\r?\n/).filter(line =>
-  line.startsWith('function ' + name + '(') || line.startsWith('async function ' + name + '(')).at(-1);
+const active = name => {
+  if(name==='completePostpone'){
+    const start=app.lastIndexOf('async function completePostpone('),rest=app.slice(start),end=rest.search(/\n(?:async )?function /);
+    return end<0?rest:rest.slice(0,end);
+  }
+  return app.split(/\r?\n/).filter(line =>
+    line.startsWith('function ' + name + '(') || line.startsWith('async function ' + name + '(')).at(-1);
+};
 const session = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
@@ -300,7 +306,7 @@ function harness({ enabled = true, role = 'ADMIN' } = {}) {
       'sub_specialty', 'phone', 'remark', 'age', 'age_months', ...(kind === 'editSlotForm' ? ['action', ...(role==='WEBMASTER'?['postpone_count']:[])] : ['reason'])];
     for (const name of names) elements[name] = { value: name === 'action' ? 'CONFIRM' : '', dataset: {},
       parentElement: { after(label) { labels.push(label); } }, dispatchEvent() {} };
-    return { elements, labels };
+    return { elements, labels, isConnected:true };
   }
   const record = { id, request_id: id, type: 'MAIN', number: 1, patient_ic: '******-**-1234', _ic_generation:session,
     _ic_edit_version:'2026-10-04T12:00:00.123456+08:00',
@@ -324,7 +330,7 @@ function harness({ enabled = true, role = 'ADMIN' } = {}) {
     field: () => '', editSlotField: () => '', editSubspecialtyField: () => '', ageFields: () => '',
     months: [], patientAgeFromIc: () => '—', bindAgeToIc: () => {}, bindClinicalFormatting: () => {},
     normalizeClinicalFields: () => {}, maskPatientIc: () => '******-**-1234', formatSystemDate:x=>x, patientNameCase:x=>x,
-    closeModal: () => {}, toast: text => messages.push(text), reloadSchedule: async () => {},
+    closeModal: () => {}, toast: text => messages.push(text), reloadSchedule: async () => {}, showPostponedPatient: async () => true,
     loadPostponeSlots: () => {}, postponeBusy: false, Event, legacyRpc: legacy,
     FormData: class {
       constructor(f) { this.rows = f.rows || Object.entries(f.elements)
