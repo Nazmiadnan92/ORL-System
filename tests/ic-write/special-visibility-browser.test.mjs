@@ -33,13 +33,14 @@ test('Staff views Special slots, patients and availability without Special reque
   });
   await page.addScriptTag({content:await readFile(new URL('../../docs/booking-workflow.js',import.meta.url),'utf8')});
   const app=await readFile(new URL('../../docs/app.js',import.meta.url),'utf8');
+  await page.addScriptTag({content:await readFile(new URL('../../docs/ot-lifecycle.js',import.meta.url),'utf8')});
   const extract=name=>{
    const start=app.lastIndexOf('function '+name+'(');assert.ok(start>=0);
    const rest=app.slice(start),end=rest.search(/\n(?:async )?function /);
    return end<0?rest:rest.slice(0,end);
   };
   for(const name of ['status','canPickSlot','directRequestAllowed','requestSlot','monthAvailability','sessionAvailability',
-   'specialDayAvailability','renderSpecialDays','slotPreview','collapsedSlot','slotCard','scheduleCard','toggleOT'])await page.addScriptTag({content:extract(name)});
+   'malaysiaToday','specialDayAvailability','renderSpecialDays','slotPreview','collapsedSlot','slotCard','scheduleCard','toggleOT'])await page.addScriptTag({content:extract(name)});
   const draw=()=>page.evaluate(()=>{
    $('#monthSummary').innerHTML=monthAvailability({main_available:1,special_available:2});
    $('#specialDays').innerHTML=renderSpecialDays([{date:day.ot_date,title:day.special_title,day_name:day.day_name,status:'ACTIVE',main_available:1,main_total:1,main_closed:0,special_available:2,special_total:6,special_closed:1}]);

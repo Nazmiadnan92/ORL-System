@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle)
+if($WithOtLifecycle){$WithSharedPostpone=$true}
 if($WithSharedPostpone){$WithSpecialVisibility=$true}
 if($WithSpecialVisibility){$WithPastOt=$true}
 if($WithPastOt){$WithSharedStatistics=$true}
@@ -102,6 +103,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
     if($LASTEXITCODE-ne0){throw 'Staff shared postponement release safety tests failed.'}
     & node --test (Join-Path $PSScriptRoot 'shared-postpone-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Staff shared postponement integration failed.'}
+  }
+  if($WithOtLifecycle){
+    & node --test (Join-Path $PSScriptRoot 'ot-lifecycle-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'OT Hold and Complete integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

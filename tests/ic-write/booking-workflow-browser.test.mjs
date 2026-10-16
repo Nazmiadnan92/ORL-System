@@ -82,6 +82,7 @@ test('booking UI: snapshots, same-date rejection, date-only Staff proposals, exp
   assert.equal(write.p_action,'APPROVE');assert.equal(write.p_expected_move_version,'2026-10-08T02:03:04.987654Z');assert.equal(write.p_expected_request_version,'2026-10-08T01:02:03.123456Z');
   // Actual duplicate renderer exposes no override; same-day submit rule is present in actual active form.
   const app=await readFile(new URL('../../docs/app.js',import.meta.url),'utf8');
+  await page.addScriptTag({content:app.split(/\r?\n/).find(l=>l.startsWith('function admissionDate('))});
   await page.addScriptTag({content:app.slice(app.indexOf('function renderDuplicateWarning('),app.indexOf('async function checkDuplicateRequest('))});
   await page.evaluate(()=>{modal('<div id="duplicateCheck"></div>');renderDuplicateWarning({exact_count:1,matches:[{id:rid,exact:true,ot_date:'2027-01-13',request_number:'Synthetic',status:'SCHEDULED',patient_name:'Synthetic',surgery:'Synthetic'}]})});
   assert.match(await page.locator('#duplicateCheck').textContent(),/Request Move/);assert.equal(await page.locator('[name="allow_duplicate"]').count(),0);
@@ -94,6 +95,6 @@ test('booking UI: snapshots, same-date rejection, date-only Staff proposals, exp
   assert.equal(await page.locator('#postSlots .slot.special').count(),5); // Closed S5 is not selectable.
   assert.match(await page.locator('#postSlots').textContent(),/Special S6/);
   const index=await readFile(new URL('../../docs/index.html',import.meta.url),'utf8');
-  assert.ok(index.indexOf('booking-workflow.js?v=003')<index.indexOf('app.js?v=086'));assert.match(index,/booking-workflow\.css\?v=001/);
+  assert.ok(index.indexOf('booking-workflow.js?v=003')<index.indexOf('app.js?v=087'));assert.match(index,/booking-workflow\.css\?v=001/);
  }finally{await browser.close()}
 });

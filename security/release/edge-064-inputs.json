@@ -1,0 +1,21 @@
+{
+  "format": "ORL-064-EDGE-INPUTS",
+  "normalization": "UTF8-NO-BOM-LF",
+  "project_ref": "imrfmilqehcrvassuvuw",
+  "function": "ic-requests",
+  "files": [
+    {"path":"supabase/config.toml","sha256":"68CE70E496F4CA828A9108C45D65039CE099669F7A42AF96334E6F5381670A40"},
+    {"path":"supabase/functions/_shared/c1/backend.mjs","sha256":"E3FACDCD44729C38D6CD9378DC920D8F4098E60E5E18241BC685C7B2DCE48438"},
+    {"path":"supabase/functions/_shared/c1/c2-maintenance.mjs","sha256":"BDB31D63D424A28E8D05D19228687F81B61652300FAEB630194D71B1794A9032"},
+    {"path":"supabase/functions/_shared/c1/c3-reveal.mjs","sha256":"6C5C90F9C4FC382C0F892E826077986A91D0DCA09FD5CD1ADB16450AC8BC58EF"},
+    {"path":"supabase/functions/_shared/c1/compatibility.mjs","sha256":"2BB1A23DFDA5CE076C095C68BFA146DAF934564499BA0E5F896049175290D794"},
+    {"path":"supabase/functions/_shared/c1/controls.mjs","sha256":"997065930355923D0C93FFFB1C1D08836BDD9C431F4AC5F779C01789C297DD2E"},
+    {"path":"supabase/functions/_shared/c1/gateway.mjs","sha256":"85440815731A517DC9D7EC5C68F96B37D8ABD4B7ACAC40F163D0058176F3A2F9"},
+    {"path":"supabase/functions/_shared/c1/handler.mjs","sha256":"62BCF21518EB2BF9025FE04E818F85FC8AA56FBC4A82D66585A0C39B69989524"},
+    {"path":"supabase/functions/_shared/c1/legacy-backup.mjs","sha256":"03A197B760A06140DBE3E832649B30E346F9BE1DBC945C5005E85FDF19550621"},
+    {"path":"supabase/functions/_shared/c1/ot-export.mjs","sha256":"F68DF69CABA91D1C5F9EC29591726FF7B5C23C6A84EA3CE48577A3AFE393B75B"},
+    {"path":"supabase/functions/_shared/c1/runtime-policy.mjs","sha256":"4140E6C9F09E402DA64920AFC891FB1CCB54EB90A995F53A00C607A85E5C3D70"},
+    {"path":"supabase/functions/_shared/ic-crypto.mjs","sha256":"1D98FFA55F03D5AC570DE894741DC78EACFD173EE697E0AC7288E5B77F96DC82"},
+    {"path":"supabase/functions/ic-requests/index.ts","sha256":"3DADC93CCF82F1100F447C97E4406DEFE930DE04B2309E87667FA27130286E20"}
+  ]
+}

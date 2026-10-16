@@ -5,7 +5,7 @@ export function createIcTransport({ baseUrl, publishableKey, session, fetchImpl 
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Invalid backend URL.');
   const endpoint = new URL('/functions/v1/ic-requests', base);
   return async (operation, payload) => {
-    if (!['OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
+    if (!['OT_LIFECYCLE','OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
     const token = session();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) throw new Error('Please sign in again.');
     let response;
@@ -180,6 +180,27 @@ export function createIcRpcRouter({ send, legacy, session, creation }) {
     orl_delete_holiday:'HOLIDAY_DELETE',orl_generate_public_holidays:'HOLIDAY_GENERATE',orl_clear_all_holidays:'HOLIDAY_CLEAR',orl_save_settings:'SETTINGS'};
   const issued=new WeakSet(),used=new WeakSet();
   return async (name, args = {}) => {
+    if(name==='orl_get_ot_hold_requests'){
+      const owner=session();if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      const view=await legacy(name,{p_session_token:owner});
+      if(session()!==owner||!generationUuid(view?.generation)||!Array.isArray(view?.requests))throw Error('Reload OT Hold.');
+      return tagReadGeneration(view.requests,view.generation,owner);
+    }
+    if(name==='orl_ic_ot_lifecycle'){
+      const owner=session(),action=args.p_action,reason=args.p_reason;
+      if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      if(!['HOLD','RELEASE_HOLD','COMPLETE'].includes(action)||![args.p_request_id,args.p_slot_id,args.p_generation].every(generationUuid)
+        ||typeof args.p_expected_version!=='string'||!Number.isFinite(Date.parse(args.p_expected_version))
+        ||typeof reason!=='string'||reason.length>4096||(action!=='COMPLETE'&&!reason.trim())||(action==='COMPLETE'&&reason!==''))
+        throw Error('Reload the patient and review this action again.');
+      const response=await send('OT_LIFECYCLE',{request_id:args.p_request_id,slot_id:args.p_slot_id,action,reason,
+        generation:args.p_generation,expected_version:args.p_expected_version});
+      const result=response?.result;
+      if(session()!==owner||result?.request_id!==args.p_request_id||result?.action!==action||result?.ot_hold!==(action==='HOLD')
+          ||(action==='COMPLETE'?result?.status!=='COMPLETED':!['CONFIRMED','SCHEDULED'].includes(result?.status)))
+        throw Error('Action not confirmed. Reload the patient and check before retrying.');
+      return result;
+    }
     if(name==='orl_find_patient_search'){
       const owner=session();if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
       const response=await send('SEARCH',{search:args.p_search});

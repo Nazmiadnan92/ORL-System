@@ -54,6 +54,7 @@ function otPatientBlocks(patient,index,date,fullIc){
  return blocks;
 }
 async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
+ patients=patients.filter(patient=>patient.ot_hold!==true);
  const entries=await readOtTemplate(buffer),ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',decoder=new TextDecoder(),parser=new DOMParser(),serializer=new XMLSerializer();
  const parse=name=>{const doc=parser.parseFromString(decoder.decode(entries[name]),'application/xml');if(doc.querySelector('parsererror'))throw new Error('Invalid template XML.');return doc};
  const sheet=parse('xl/worksheets/sheet1.xml'),book=parse('xl/workbook.xml'),styles=parse('xl/styles.xml'),rows=sheet.getElementsByTagNameNS(ns,'sheetData')[0];
@@ -111,7 +112,7 @@ async function generateOtList(sessionId){
  if(otExportBusy){toast('An OT list is already being prepared.');return}
  if(!protectedIcEnabled()){toast('Protected OT export is unavailable. Contact Webmaster.');return}
  const session=(window._schedule||[]).find(s=>s.session_id===sessionId);if(!session){toast('OT date could not be found.');return}
- const patients=session.slots.filter(s=>s.patient_name&&s.request_status!=='CANCELLED'&&!['AVAILABLE','CLOSED'].includes(s.status));
+ const patients=session.slots.filter(s=>s.patient_name&&s.ot_hold!==true&&s.request_status!=='CANCELLED'&&!['AVAILABLE','CLOSED'].includes(s.status));
  if(!patients.length){toast('No scheduled patients are available for this OT list.');return}
  const owner=token,generation=session._ic_generation;
  modal(`<h2>Generate OT List</h2><p>OT date: ${esc(formatSystemDate(session.ot_date))}</p><div class="security-warning">The Excel file will contain full IC / Passport numbers. Store it securely and share only with authorized clinical staff. Your name, role, time, OT date and patient count will be recorded in Audit Log.</div><form id="otExportForm"><div class="field"><label>Your Current Website Password<input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label></div><label class="confirm-check"><input type="checkbox" required> I am authorized to generate this OT list for clinical use.</label><div class="actions"><button class="primary" type="submit">Generate Excel</button><button type="button" class="secondary" onclick="closeModal()">Cancel</button></div></form>`);

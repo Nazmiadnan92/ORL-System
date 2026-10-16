@@ -55,7 +55,7 @@ test('Staff postpones any creator to Main with unchanged cross-owner details; ow
    window.protectedIcClient=async()=>({bindProtectedIcField,route});
   });
   for(const name of ['field','maskPatientIc','patientNameCase','clinicalUpper','normalizeClinicalFields','bindClinicalFormatting',
-   'configureProtectedIcForm','protectedIcArgs','rpc','postponeSlot','loadPostponeSlots','completePostpone'])await page.addScriptTag({content:extract(app,name)});
+   'admissionDate','configureProtectedIcForm','protectedIcArgs','rpc','postponeSlot','loadPostponeSlots','completePostpone'])await page.addScriptTag({content:extract(app,name)});
   const open=async(creatorRole,own=false,actor='STAFF')=>{
    await page.evaluate(({creatorRole,own,actor})=>{user={role:actor,user_id:staffId};fixture(own?staffId:otherId,creatorRole);postponeSlot(sourceId);return $('#postponeForm')._icReady},{creatorRole,own,actor});
    await page.waitForSelector('#postSlots button');

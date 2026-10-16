@@ -14,6 +14,7 @@ test('saved Postpone shows the fresh destination patient name across month/year 
   await page.setContent('<main style="margin-left:0;width:100%;min-width:0"><header>ORL synthetic navigation test</header><div id="content"></div></main><div id="modal" class="modal" hidden><div class="dialog"><div id="modalBody"></div></div></div>');
   for(const file of ['styles.css','schedule.css','mobile.css'])await page.addStyleTag({content:await readFile(new URL('../../docs/'+file,import.meta.url),'utf8')});
   const app=await readFile(new URL('../../docs/app.js',import.meta.url),'utf8');
+  await page.addScriptTag({content:await readFile(new URL('../../docs/ot-lifecycle.js',import.meta.url),'utf8')});
   const extract=name=>{let start=app.lastIndexOf('function '+name+'(');assert.ok(start>=0,name);if(app.slice(start-6,start)==='async ')start-=6;const rest=app.slice(start),end=rest.search(/\n(?:async )?function /);return end<0?rest:rest.slice(0,end)};
   await page.evaluate(()=>{
    window.$=selector=>document.querySelector(selector);window.$$=selector=>[...document.querySelectorAll(selector)];

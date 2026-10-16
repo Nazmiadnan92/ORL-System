@@ -56,6 +56,26 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
       if (!['BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(body.operation) && JSON.stringify(body).length > C1_SMALL_BODY_BYTES) throw new Error('Invalid');
     } catch { return reply(400, { error: 'Invalid or oversized protected request.' }); }
 
+    if(body.operation==='OT_LIFECYCLE'){
+      if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
+      if(!exact(body,['operation','request_id','slot_id','action','reason','generation','expected_version'])
+        ||![body.request_id,body.slot_id,body.generation].every(x=>typeof x==='string'&&uuid.test(x))
+        ||!['HOLD','RELEASE_HOLD','COMPLETE'].includes(body.action)||!timestamp(body.expected_version)
+        ||typeof body.reason!=='string'||body.reason.length>4096
+        ||(body.action==='COMPLETE'?body.reason!=='':body.reason.trim()===''))
+        return reply(400,{error:'Invalid OT lifecycle request. Reload the patient and enter the required reason.'});
+      try{
+        const result=await rpc('orl_ic_ot_lifecycle',{p_session_token:token,p_request_id:body.request_id,
+          p_slot_id:body.slot_id,p_action:body.action,p_reason:body.reason,p_generation:body.generation,
+          p_expected_version:body.expected_version});
+        if(result?.request_id!==body.request_id||result?.action!==body.action||typeof result?.ot_hold!=='boolean'
+          ||!['SCHEDULED','CONFIRMED','COMPLETED'].includes(result?.status)
+          ||(body.action==='COMPLETE'&&(result.status!=='COMPLETED'||result.ot_hold))
+          ||(body.action!=='COMPLETE'&&result.status==='COMPLETED')
+          ||(body.action==='HOLD'&&!result.ot_hold)||(body.action==='RELEASE_HOLD'&&result.ot_hold))throw Error('Invalid');
+        return reply(200,{result});
+      }catch{return reply(409,{error:'OT status change was not confirmed. Reload the schedule and review the patient before trying again.'})}
+    }
     if(body.operation==='OT_EXPORT'){
       if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
       if(!exact(body,['operation','password','session_id','generation'])||!password(body.password)

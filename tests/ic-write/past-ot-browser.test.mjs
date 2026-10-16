@@ -23,8 +23,9 @@ test('past OT uses Malaysia midnight, grey cards and PAST, keeps history/Print/V
   });
   await page.addScriptTag({content:await readFile(new URL('../../docs/booking-workflow.js',import.meta.url),'utf8')});
   const app=await readFile(new URL('../../docs/app.js',import.meta.url),'utf8');
+  await page.addScriptTag({content:await readFile(new URL('../../docs/ot-lifecycle.js',import.meta.url),'utf8')});
   const extract=name=>{const start=app.lastIndexOf('function '+name+'('),rest=app.slice(start),end=rest.search(/\n(?:async )?function /);assert.ok(start>=0);return end<0?rest:rest.slice(0,end)};
-  for(const name of ['status','canPickSlot','directRequestAllowed','sessionAvailability','specialDayAvailability','collapsedSlot','slotCard','scheduleCard','toggleOT'])await page.addScriptTag({content:extract(name)});
+  for(const name of ['malaysiaToday','status','canPickSlot','directRequestAllowed','sessionAvailability','specialDayAvailability','collapsedSlot','slotCard','scheduleCard','toggleOT'])await page.addScriptTag({content:extract(name)});
   const draw=()=>page.evaluate(()=>{$('#scheduleList').innerHTML=_schedule.map(s=>scheduleCard(s,[])).join('')});
   for(const role of ['STAFF','ADMIN','WEBMASTER']){
    await page.evaluate(role=>user={role},role);await draw();

@@ -36,7 +36,7 @@ test('legacy DOCX fallback defensively masks IC and never formats a full identif
 });
 
 test('Request Management has no permanent-delete shortcut and offers cancellation plus unscheduled count edit',()=>{
-  const start=app.indexOf('async function drawRequests('),end=app.indexOf('\nfunction jumpToRequest',start),source=app.slice(start,end);
+  const start=app.indexOf('function requestManagementActions('),end=app.indexOf('\nfunction jumpToRequest',start),source=app.slice(start,end);
   assert.doesNotMatch(source,/deleteRequest\s*\(/);
   assert.match(source,/Request Cancel/);
   assert.match(source,/editPostpone\([^)]*,true\)/);
