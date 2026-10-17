@@ -15,7 +15,7 @@ async function readOtTemplate(buffer){
  }return entries;
 }
 // Wrap estimates use the same Arial 14 font as Excel. Pieces preserve every
-// character; unusually long clinical text continues in another five-row block.
+// character; unusually long clinical text continues in another six-row block.
 function otTextPieces(value,width,maxLines){
  const text=String(value??''),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
  ctx.font='14pt Arial';const lines=[];let remaining=text;
@@ -34,11 +34,16 @@ function otTextPieces(value,width,maxLines){
  const parts=[];for(let i=0;i<lines.length;i+=maxLines)parts.push({text:lines.slice(i,i+maxLines).join(''),lines:Math.min(maxLines,lines.length-i)});
  return parts;
 }
+function otExportIdentity(value){
+ const text=String(value??''),digits=text.replace(/[ -]/g,'');
+ // Format only a twelve-digit IC, never strip letters or punctuation from a passport.
+ return /^[0-9 -]+$/.test(text)&&/^[0-9]{12}$/.test(digits)?digits.slice(0,6)+'-'+digits.slice(6,8)+'-'+digits.slice(8):text;
+}
 function otPatientBlocks(patient,index,date,fullIc){
- const values=[patientNameCase(patient.patient_name),fullIc?String(patient.patient_ic??''):maskPatientIc(patient.patient_ic),
+ const values=[patientNameCase(patient.patient_name),fullIc?otExportIdentity(patient.patient_ic):maskPatientIc(patient.patient_ic),
   clinicalUpper(patient.mrn),patientAgeText(patient,date,true),clinicalUpper(patient.diagnosis),clinicalUpper(patient.surgery),patient.sub_specialty];
  // Conservative inner widths for the wider uploaded template. Keep the font
- // unchanged; long clinical text continues in complete five-row blocks.
+ // unchanged; long clinical text continues in complete six-row blocks.
  const limits=[[162,4],[162,2],[162,2],[42,16],[190,16],[183,16],[64,16]];
  const fields=values.map((value,i)=>otTextPieces(value,...limits[i])),count=Math.max(...fields.map(p=>p.length)),blocks=[];
  for(let part=0;part<count;part++){
@@ -48,7 +53,7 @@ function otPatientBlocks(patient,index,date,fullIc){
   if(part)for(const i of [0,1,2,3,6])if(fields[i].length===1)cells[i]=fields[i][0];
   if(part&&!cells[0].text)cells[0]={text:'Kes '+(index+1),lines:1};
   const height=Math.ceil(Math.max(20.1,(cells[0].lines*19+4)/2,cells[1].lines*19+2,cells[2].lines*19+2,
-   (Math.max(...cells.slice(3).map(c=>c.lines))*19+8)/5)*10)/10;
+   (Math.max(...cells.slice(3).map(c=>c.lines))*19+8)/6)*10)/10;
   blocks.push({number:index+1,part,cells:cells.map(c=>c.text),height});
  }
  return blocks;
@@ -61,12 +66,13 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const all=(doc,tag)=>Array.from(doc.getElementsByTagNameNS(ns,tag));
  const setCell=(row,col,value)=>{const ref=col+row.getAttribute('r');let cell=all(row,'c').find(c=>c.getAttribute('r')===ref);if(!cell){cell=sheet.createElementNS(ns,'c');cell.setAttribute('r',ref);row.append(cell)}cell.replaceChildren();cell.setAttribute('t','inlineStr');const is=sheet.createElementNS(ns,'is'),t=sheet.createElementNS(ns,'t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=String(value??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');is.append(t);cell.append(is)};
  const sourceRows=all(rows,'row'),rowAt=n=>sourceRows.find(r=>Number(r.getAttribute('r'))===n),merges=all(sheet,'mergeCells')[0];
- if(!rowAt(27)||!all(merges,'mergeCell').some(m=>m.getAttribute('ref')==='B27:E27')||!all(merges,'mergeCell').some(m=>m.getAttribute('ref')==='B12:B13'))throw Error('OT template version mismatch. Reload the website before generating.');
- const body=sourceRows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=16);
- const footer=sourceRows.filter(r=>Number(r.getAttribute('r'))>=22&&Number(r.getAttribute('r'))<=27);
+ const mergeRefs=all(merges,'mergeCell').map(m=>m.getAttribute('ref'));
+ const body=sourceRows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=17);
+ const footer=sourceRows.filter(r=>Number(r.getAttribute('r'))>=24&&Number(r.getAttribute('r'))<=29);
+ if(body.length!==6||footer.length!==6||!rowAt(29)||!['B29:E29','B12:B13','A12:A17','C12:C17','E12:E17','F12:F17','J12:J17','D12:D13','D14:D15','D16:D17'].every(ref=>mergeRefs.includes(ref)))throw Error('OT template version mismatch. Reload the website before generating.');
  const shift=(ref,delta)=>ref.replace(/(\$?[A-Z]+\$?)(\d+)/g,(_,col,n)=>col+(Number(n)+delta));
- const bodyMerges=all(merges,'mergeCell').map(m=>m.getAttribute('ref')).filter(ref=>/^[A-Z]+12:/.test(ref));
- const footerMerges=all(merges,'mergeCell').map(m=>m.getAttribute('ref')).filter(ref=>Number(ref.match(/\d+/)[0])>=22);
+ const bodyMerges=mergeRefs.filter(ref=>{const ends=ref.match(/\d+/g).map(Number);return ends[0]>=12&&ends[1]<=17});
+ const footerMerges=mergeRefs.filter(ref=>Number(ref.match(/\d+/)[0])>=24);
  sourceRows.filter(r=>Number(r.getAttribute('r'))>=12).forEach(r=>r.remove());
  all(merges,'mergeCell').filter(m=>Number(m.getAttribute('ref').match(/\d+/)[0])>=12).forEach(m=>m.remove());
  const addMerge=ref=>{const m=sheet.createElementNS(ns,'mergeCell');m.setAttribute('ref',ref);merges.append(m)};
@@ -81,17 +87,17 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const footerHeight=footer.reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
  const breaks=[];let used=0;
  blocks.forEach((block,i)=>{
-  const first=12+i*5,height=block.height*5,last=i===blocks.length-1;
+  const first=12+i*6,height=block.height*6,last=i===blocks.length-1;
   if(height>bodyBudget)throw Error('OT text layout could not fit safely. Contact Webmaster; no file was downloaded.');
   if(used&&(used+height>bodyBudget||(last&&height+footerHeight<=bodyBudget&&used+height+footerHeight>bodyBudget))){breaks.push(first-1);used=0}
-  const cloned=cloneRows(body,i*5,block.height);bodyMerges.forEach(ref=>addMerge(shift(ref,i*5)));
+  const cloned=cloneRows(body,i*6,block.height);bodyMerges.forEach(ref=>addMerge(shift(ref,i*6)));
   for(const row of cloned)for(const col of 'ABCDEFGHIJ')setCell(row,col,'');
   const[name,ic,mrn,age,diagnosis,surgery,sub]=block.cells;
   [['A',block.number],['B',name],['C',age],['E',diagnosis],['F',surgery],['J',sub]].forEach(([col,value])=>setCell(cloned[0],col,value));
-  setCell(cloned[2],'B',ic);setCell(cloned[3],'B',mrn);if(block.part)setCell(cloned[4],'B','Sambungan');
+  setCell(cloned[2],'B',ic);setCell(cloned[3],'B',mrn);if(block.part)setCell(cloned[5],'B','Sambungan');
   used+=height;
  });
- const delta=(blocks.length-2)*5,footerStart=22+delta,lastRow=27+delta;
+ const delta=(blocks.length-2)*6,footerStart=24+delta,lastRow=29+delta;
  if(used+footerHeight>bodyBudget)breaks.push(footerStart-1);
  cloneRows(footer,delta);footerMerges.forEach(ref=>addMerge(shift(ref,delta)));
  merges.setAttribute('count',String(all(merges,'mergeCell').length));
@@ -128,7 +134,7 @@ async function generateOtList(sessionId){
   try{
    stillActive();
    // Keep the old asset intact for already-open tabs using the earlier layout.
-   const response=await fetch('assets/ot-list-template-v070.xlsx',{cache:'no-store'});
+   const response=await fetch('assets/ot-list-template-v072.xlsx',{cache:'no-store'});
    if(!response.ok)throw Error('Unable to load Excel template.');
    const template=await response.arrayBuffer();stillActive();
    result=await rpc('orl_ic_ot_export',{p_session_token:owner,p_password:data.password,p_session_id:sessionId,p_generation:generation});

@@ -4,7 +4,8 @@ test('new OT layout uses a versioned clean asset while cached tabs keep the orig
  const hash=path=>createHash('sha256').update(readFileSync(new URL('../../'+path,import.meta.url))).digest('hex');
  assert.equal(hash('docs/assets/ot-list-template.xlsx'),'d0e209d0a90a0986bda94de92ce5d708801f253615feacabc1c51748a51dab00');
  assert.equal(hash('docs/assets/ot-list-template-v070.xlsx'),'284e8ecbda6c80a3eb129e186f19f799af9bf14109f98eaf9209fe3eb1fc6669');
- assert.ok(read('docs/ot-excel.js').includes("fetch('assets/ot-list-template-v070.xlsx',{cache:'no-store'})"));
+ assert.equal(hash('docs/assets/ot-list-template-v072.xlsx'),'17327dd6260ef0d87f650d546e8ed8bd5e43fb6fbefc97d1d33aaa2bb0d662c9');
+ assert.ok(read('docs/ot-excel.js').includes("fetch('assets/ot-list-template-v072.xlsx',{cache:'no-store'})"));
 });
 test('053 installer pins reviewed files, backs up before confirmation, never restores production',()=>{
  const installer=read('security/release/install-053.ps1');
@@ -21,7 +22,7 @@ test('053 installer pins reviewed files, backs up before confirmation, never res
  assert.match(sql,/revoke all on function public.orl_ic_ot_export_commit/);
 });
 test('release uses same Generate button and bumped module caches, with full IC only in audited Excel path',()=>{
- assert.match(read('docs/index.html'),/app\.js\?v=087/);assert.match(read('docs/index.html'),/ot-excel\.js\?v=071/);
+ assert.match(read('docs/index.html'),/app\.js\?v=087/);assert.match(read('docs/index.html'),/ot-excel\.js\?v=072/);
  assert.match(read('docs/app.js'),/ic-client\.mjs\?v=079/);
  const s=read('docs/ot-excel.js');
  assert.match(s,/fullIc=false/);assert.match(s,/orl_ic_ot_export/);
