@@ -707,7 +707,8 @@ function specialDayAvailability(day){
   }).join('');
 }
 function renderSpecialDays(specials){
-  return specials.length?`<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${specials.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${formatSystemDate(x.date)}</small></div><div class="special-directory-actions">${specialDayAvailability(x)}<button class="secondary mini">Show Date →</button></div></div>`).join('')}</section>`:'';
+  const at=new Date(),upcoming=specials.filter(day=>!isPastOtDate(day.date,at));
+  return `<section class="card special-directory"><h2>🏷️ Special OT Days This Year</h2>${upcoming.map(x=>`<div class="special-directory-row" onclick="showSpecialDate('${x.date}')"><div><b>${esc(x.title)}</b><small>${esc(x.day_name)}, ${formatSystemDate(x.date)}</small></div><div class="special-directory-actions">${specialDayAvailability(x)}<button class="secondary mini">Show Date →</button></div></div>`).join('')||'<p class="muted">No upcoming special OT days.</p>'}</section>`;
 }
 function subspecialtyOptions(){return ['Gen ORL','Rhinology','Otology','Head & Neck','Paeds','Sleep Surgery']}
 function editSubspecialtyField(value,editable){

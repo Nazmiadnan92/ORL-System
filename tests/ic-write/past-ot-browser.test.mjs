@@ -20,13 +20,15 @@ test('past OT uses Malaysia midnight, grey cards and PAST, keeps history/Print/V
     slots:[{id:date+'-1',type:'MAIN',number:1,status:'AVAILABLE'},{id:date+'-2',type:'SPECIAL',number:1,status:'AVAILABLE'},
      {id:date+'-3',type:'MAIN',number:2,status:'CONFIRMED',request_status:'SCHEDULED',request_id:'synthetic',patient_name:'Synthetic historical patient',mrn:'TEST-ONLY',patient_ic:'900101-**-****',sub_specialty:'Gen ORL'}]});
    window._schedule=[makeDay('2026-10-07'),makeDay('2026-10-08'),makeDay('2026-10-09','ACTIVE','Special OT Day'),makeDay('2026-10-06','HOLIDAY')];window._holidays=[];
+   window._specialOtDays=_schedule.map(s=>({date:s.ot_date,title:'Synthetic Special '+s.ot_date,day_name:s.day_name,status:s.status,main_available:1,main_total:2,main_closed:0,special_available:1,special_total:1,special_closed:0}));
   });
   await page.addScriptTag({content:await readFile(new URL('../../docs/booking-workflow.js',import.meta.url),'utf8')});
   const app=await readFile(new URL('../../docs/app.js',import.meta.url),'utf8');
   await page.addScriptTag({content:await readFile(new URL('../../docs/ot-lifecycle.js',import.meta.url),'utf8')});
   const extract=name=>{const start=app.lastIndexOf('function '+name+'('),rest=app.slice(start),end=rest.search(/\n(?:async )?function /);assert.ok(start>=0);return end<0?rest:rest.slice(0,end)};
-  for(const name of ['malaysiaToday','status','canPickSlot','directRequestAllowed','sessionAvailability','specialDayAvailability','collapsedSlot','slotCard','scheduleCard','toggleOT'])await page.addScriptTag({content:extract(name)});
-  const draw=()=>page.evaluate(()=>{$('#scheduleList').innerHTML=_schedule.map(s=>scheduleCard(s,[])).join('')});
+  for(const name of ['malaysiaToday','status','canPickSlot','directRequestAllowed','sessionAvailability','specialDayAvailability','renderSpecialDays','collapsedSlot','slotCard','scheduleCard','toggleOT'])await page.addScriptTag({content:extract(name)});
+  const originalSpecials=await page.evaluate(()=>JSON.stringify(_specialOtDays));
+  const draw=()=>page.evaluate(()=>{$('#scheduleList').innerHTML=_schedule.map(s=>scheduleCard(s,[])).join('');$('#specialDays').innerHTML=renderSpecialDays(_specialOtDays)});
   for(const role of ['STAFF','ADMIN','WEBMASTER']){
    await page.evaluate(role=>user={role},role);await draw();
    const past=page.locator('#d-2026-10-07');assert.equal(await past.locator('.badge.PAST').count(),1);
@@ -36,6 +38,12 @@ test('past OT uses Malaysia midnight, grey cards and PAST, keeps history/Print/V
    assert.equal(await page.locator('#d-2026-10-08.past').count(),0);assert.ok(await page.locator('#d-2026-10-08 [onclick^="requestSlot"]').count()>0);
    assert.equal(await page.locator('#d-2026-10-09 .badge.PAST').count(),0);
    assert.equal(await page.locator('#d-2026-10-06 .badge.HOLIDAY').count(),1);
+   assert.equal(await page.locator('#specialDays .special-directory-row').count(),2);
+   assert.doesNotMatch(await page.locator('#specialDays').innerText(),/2026-10-07|2026-10-06|PAST/);
+   assert.match(await page.locator('#specialDays').innerText(),/2026-10-08/);
+   assert.match(await page.locator('#specialDays').innerText(),/2026-10-09/);
+   assert.equal(await page.locator('#specialDays [onclick="showSpecialDate(\'2026-10-09\')"]').count(),1);
+   assert.equal(await page.evaluate(()=>JSON.stringify(_specialOtDays)),originalSpecials,'Summary filtering never removes historical special dates from memory');
    const style=await past.evaluate(el=>({bg:getComputedStyle(el).backgroundColor,top:getComputedStyle(el).borderTopColor}));
    assert.deepEqual(style,{bg:'rgb(241, 243, 245)',top:'rgb(75, 85, 99)'});
   }
@@ -54,9 +62,37 @@ test('past OT uses Malaysia midnight, grey cards and PAST, keeps history/Print/V
   assert.equal(await page.locator('#d-2026-10-08.past.open').count(),1);
   assert.equal(await page.locator('#d-2026-10-08 [onclick^="requestSlot"]').count(),0);
   assert.equal(await page.locator('#d-2026-10-09.past').count(),0);
+  assert.equal(await page.locator('#specialDays .special-directory-row').count(),1);
+  assert.doesNotMatch(await page.locator('#specialDays').innerText(),/2026-10-08/);
+  assert.match(await page.locator('#specialDays').innerText(),/2026-10-09/);
   assert.equal(await page.evaluate(()=>JSON.stringify(_schedule)),before,'No stored status or patient data is changed');
+  assert.equal(await page.evaluate(()=>JSON.stringify(_specialOtDays)),originalSpecials);
   await page.setViewportSize({width:390,height:844});await page.locator('#d-2026-10-08 .session-toggle').click();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   if(process.env.ORL_PAST_QA)await page.screenshot({path:resolve(process.env.ORL_PAST_QA,'past-ot-mobile.png'),fullPage:true});
+  // The existing midnight timer removes expired summary rows without removing historical cards.
+  await page.clock.setSystemTime(new Date('2026-10-09T15:59:50Z'));
+  await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));await page.clock.runFor(31000);
+  assert.equal(await page.locator('#specialDays .special-directory-row').count(),0);
+  assert.match(await page.locator('#specialDays').innerText(),/No upcoming special OT days\./);
+  assert.equal(await page.locator('#d-2026-10-09 .session-toggle').count(),1);
+  assert.equal(await page.locator('#d-2026-10-09 [onclick^="generateOtList"]').count(),1);
+  assert.equal(await page.evaluate(()=>JSON.stringify(_schedule)),before);
+  assert.equal(await page.evaluate(()=>JSON.stringify(_specialOtDays)),originalSpecials);
+  // Empty lists and Malaysia year/leap-day rollover work even on a non-Malaysia browser clock.
+  assert.match(await page.evaluate(()=>renderSpecialDays([])),/No upcoming special OT days\./);
+  await page.clock.setSystemTime(new Date('2026-12-31T15:59:59Z'));
+  await page.evaluate(()=>{
+   window._specialOtDays=['2026-12-31','2027-01-01'].map(date=>({..._specialOtDays[0],date,title:'Synthetic '+date}));
+   refreshPastOtCards();
+  });
+  assert.equal(await page.locator('#specialDays .special-directory-row').count(),2);
+  await page.clock.setSystemTime(new Date('2026-12-31T16:00:00Z'));await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  assert.equal(await page.locator('#specialDays .special-directory-row').count(),1);
+  assert.doesNotMatch(await page.locator('#specialDays').innerText(),/2026-12-31/);
+  assert.match(await page.locator('#specialDays').innerText(),/2027-01-01/);
+  await page.clock.setSystemTime(new Date('2028-02-29T16:00:00Z'));
+  const leapHtml=await page.evaluate(()=>renderSpecialDays(['2028-02-29','2028-03-01'].map(date=>({..._specialOtDays[0],date,title:date}))));
+  assert.doesNotMatch(leapHtml,/2028-02-29/);assert.match(leapHtml,/2028-03-01/);
  }finally{await browser.close()}
 });
