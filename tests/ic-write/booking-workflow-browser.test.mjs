@@ -95,6 +95,6 @@ test('booking UI: snapshots, same-date rejection, date-only Staff proposals, exp
   assert.equal(await page.locator('#postSlots .slot.special').count(),5); // Closed S5 is not selectable.
   assert.match(await page.locator('#postSlots').textContent(),/Special S6/);
   const index=await readFile(new URL('../../docs/index.html',import.meta.url),'utf8');
-  assert.ok(index.indexOf('booking-workflow.js?v=003')<index.indexOf('app.js?v=090'));assert.match(index,/booking-workflow\.css\?v=001/);
+  assert.ok(index.indexOf('booking-workflow.js?v=003')<index.indexOf('app.js?v=091'));assert.match(index,/booking-workflow\.css\?v=001/);
  }finally{await browser.close()}
 });

@@ -329,14 +329,20 @@ function reassignSlot(sessionId,fromId){
   const session=(window._schedule||[]).find(x=>x.session_id===sessionId);
   const source=session?.slots.find(x=>x.id===fromId);
   if(!source?.request_id){toast('Refresh the schedule and select the patient again.');return}
-  if(source.request_status==='COMPLETED'){toast('Done records cannot be reassigned.');return}
+  const sourceDone=source.request_status==='COMPLETED';
+  const historicalRecord=slot=>!!slot.request_id&&['RESERVED','CONFIRMED'].includes(slot.status)&&['CONFIRMED','SCHEDULED','COMPLETED'].includes(slot.request_status)&&slot.deletion_status==='';
   const historicalCorrection=user.role==='WEBMASTER'&&protectedIcEnabled()&&isPastOtDate(session.ot_date)
-    &&['RESERVED','CONFIRMED'].includes(source.status)&&['CONFIRMED','SCHEDULED'].includes(source.request_status)&&source.deletion_status==='';
-  const targets=session.slots.filter(x=>x.id!==fromId&&x.request_status!=='COMPLETED'&&(x.status!=='CLOSED'||(historicalCorrection&&x.request_id===null&&!x.patient_name)));
+    &&historicalRecord(source);
+  if(sourceDone&&!historicalCorrection){toast('Only Webmaster can reassign a Done record on a past OT date.');return}
+  const targets=session.slots.filter(x=>{
+    if(x.id===fromId)return false;
+    if(sourceDone||x.request_status==='COMPLETED')return historicalCorrection&&(x.request_id?historicalRecord(x):x.request_id===null&&!x.patient_name&&!x.request_status&&['AVAILABLE','CLOSED'].includes(x.status));
+    return x.status!=='CLOSED'||(historicalCorrection&&x.request_id===null&&!x.patient_name);
+  });
   if(!targets.length){toast('There are no eligible slots to reassign this patient to.');return}
   // Copy IDs at selection time; never replace these with a later schedule snapshot.
-  reassignSelection={fromId,sourceRequestId:source.request_id,generation:source._ic_generation,owner:token,otDate:session.ot_date,sourceLabel:`${source.type==='SPECIAL'?'Special':'Main'} S${source.number}`,targets:new Map(targets.map(x=>[x.id,x.request_id??null])),closedTargets:new Map(targets.filter(x=>x.status==='CLOSED').map(x=>[x.id,`${x.type==='SPECIAL'?'Special':'Main'} S${x.number}`])),busy:false};
-  modal(`<h2>↔ Reassign OT Slot</h2><p>Select another Main or Special slot on ${formatSystemDate(session.ot_date)}. If occupied, both patients will swap positions.</p>${reassignSelection.closedTargets.size?'<p class="muted">Closed slots are available to Webmaster for historical corrections only. The vacated slot stays closed to new requests.</p>':''}<div class="slots">${targets.map(x=>`<button class="slot ${x.status.toLowerCase()}" onclick="swapSlot('${fromId}','${x.id}')">${x.type==='SPECIAL'?'★ Special':'Main'} S${x.number}${x.status==='CLOSED'?' — Closed · historical correction':x.patient_name?` — ${esc(patientNameCase(x.patient_name))}`:' — Available'}</button>`).join('')}</div>`);
+  reassignSelection={fromId,sourceRequestId:source.request_id,generation:source._ic_generation,owner:token,otDate:session.ot_date,sourceLabel:`${source.type==='SPECIAL'?'Special':'Main'} S${source.number}${sourceDone?' (Done)':''}`,targets:new Map(targets.map(x=>[x.id,x.request_id??null])),targetLabels:new Map(targets.map(x=>[x.id,`${x.type==='SPECIAL'?'Special':'Main'} S${x.number}${x.status==='CLOSED'?' (Closed)':x.request_status==='COMPLETED'?' (Done)':''}`])),closedTargets:new Set(targets.filter(x=>x.status==='CLOSED').map(x=>x.id)),doneTargets:new Set(targets.filter(x=>sourceDone||x.request_status==='COMPLETED').map(x=>x.id)),busy:false};
+  modal(`<h2>↔ Reassign OT Slot</h2><p>Select another Main or Special slot on ${formatSystemDate(session.ot_date)}. If occupied, both patients will swap positions.</p>${reassignSelection.closedTargets.size?'<p class="muted">Closed slots are available to Webmaster for historical corrections only. The vacated slot stays closed to new requests.</p>':''}${reassignSelection.doneTargets.size?'<p class="muted">Done records can only be reordered by Webmaster on this past OT date. Done status and completion details are preserved; past slots stay closed to new requests.</p>':''}<div class="slots">${targets.map(x=>`<button class="slot ${x.status.toLowerCase()}" onclick="swapSlot('${fromId}','${x.id}')">${x.type==='SPECIAL'?'★ Special':'Main'} S${x.number}${x.status==='CLOSED'?' — Closed · historical correction':x.patient_name?` — ${esc(patientNameCase(x.patient_name))}${x.request_status==='COMPLETED'?' · Done':''}`:' — Available'}</button>`).join('')}</div>`);
 }
 async function swapSlot(fromId,toId){
   const selection=reassignSelection;
@@ -346,9 +352,9 @@ async function swapSlot(fromId,toId){
   try{
     if(protectedIcEnabled()&&selection.owner!==token)throw new Error('Please sign in again.');
     if(!user||!['ADMIN','WEBMASTER'].includes(user.role))throw new Error('Admin access required.');
-    if(selection.closedTargets.has(toId)){
-      if(user.role!=='WEBMASTER'||!protectedIcEnabled()||selection.owner!==token||!isPastOtDate(selection.otDate))throw new Error('Reload the schedule. Only Webmaster can correct a closed slot on a past OT date.');
-      if(!confirm(`Reassign this patient from ${selection.sourceLabel} to ${selection.closedTargets.get(toId)} (Closed) on ${formatSystemDate(selection.otDate)}? This is a historical correction on the same OT date. The vacated slot will remain closed to new requests. Done status and postpone count will not change.`))return;
+    if(selection.closedTargets.has(toId)||selection.doneTargets.has(toId)){
+      if(user.role!=='WEBMASTER'||!protectedIcEnabled()||selection.owner!==token||!isPastOtDate(selection.otDate))throw new Error('Reload the schedule. Only Webmaster can reorder Done records or correct a closed slot on a past OT date.');
+      if(!confirm(`Reassign this patient from ${selection.sourceLabel} to ${selection.targetLabels.get(toId)} on ${formatSystemDate(selection.otDate)}? This is a historical correction on the same OT date. ${selection.targets.get(toId)===null?'The vacated slot will remain closed to new requests. ':'Both patients will swap positions. '}Done status, completion details, Hold status and postpone count will not change. Past slots stay closed to new requests.`))return;
       if(selection.owner!==token||user?.role!=='WEBMASTER'||!protectedIcEnabled())throw new Error('Please sign in again.');
     }
     await rpc('orl_swap_slots_checked',{p_session_token:token,p_from:fromId,p_to:toId,p_expected_from_request_id:selection.sourceRequestId,p_expected_to_request_id:selection.targets.get(toId),...(protectedIcEnabled()?{p_generation:selection.generation}:{})});
@@ -1026,8 +1032,9 @@ function slotCard(sl,s,admin){
   const filled=!!sl.patient_name,label=(sl.type==='SPECIAL'?'★ Special Slot ':'Main Slot ')+sl.number,pick=canPickSlot(sl,s),cancelled=sl.request_status==='CANCELLED',held=sl.ot_hold===true,completed=sl.request_status==='COMPLETED';
   const pendingApproval=filled&&sl.status==='RESERVED',computed=filled?patientAgeFromIc(sl.patient_ic,s.ot_date):'—',age=sl.age??computed;
   const postponed=sl.postpone_count?`<span class="badge patient-postpone">🔁 Postponed ×${esc(sl.postpone_count)}</span>`:'';
+  const reassignable=admin&&(!completed||(user?.role==='WEBMASTER'&&protectedIcEnabled()&&isPastOtDate(s.ot_date)&&!!sl.request_id&&['RESERVED','CONFIRMED'].includes(sl.status)&&sl.deletion_status===''));
   let actions='';
-  if(filled){actions=`${admin&&pendingApproval&&!held&&!completed?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}${admin&&protectedIcEnabled()?`<button class="reveal-ic mini" onclick="revealPatientIc('${sl.request_id}','${sl._ic_generation}')">🔐 Reveal IC</button>`:''}${!completed?`<button class="postpone-slot mini" onclick="postponeSlot('${sl.id}')">${held?'Choose New OT Date':'Postpone'}</button>`:''}${admin&&!completed?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}${!completed&&!isPastOtDate(s.ot_date)?`<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>`:''}${admin&&!held&&!completed?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}${otLifecycleActions(sl,s,admin)}`}
+  if(filled){actions=`${admin&&pendingApproval&&!held&&!completed?`<button class="approve-slot mini" onclick="approveSlotRequest('${sl.request_id}')">✓ Approve</button>`:''}${admin&&protectedIcEnabled()?`<button class="reveal-ic mini" onclick="revealPatientIc('${sl.request_id}','${sl._ic_generation}')">🔐 Reveal IC</button>`:''}${!completed?`<button class="postpone-slot mini" onclick="postponeSlot('${sl.id}')">${held?'Choose New OT Date':'Postpone'}</button>`:''}${reassignable?`<button class="mini" onclick="reassignSlot('${s.session_id}','${sl.id}')">← Reassign</button>`:''}${!completed&&!isPastOtDate(s.ot_date)?`<button class="mini" onclick="editSlot('${sl.id}')">Edit</button>`:''}${admin&&!held&&!completed?`<button class="danger mini" onclick="clearSlot('${sl.id}')">Clear</button>`:''}${otLifecycleActions(sl,s,admin)}`}
   else{
     if(pick)actions+=`<button class="primary mini" onclick="assignSlot('${sl.id}')">Assign OT Slot</button>`;
     else if(directRequestAllowed(sl,s))actions+=`<button class="primary mini request-slot" onclick="requestSlot('${sl.id}')">＋ Request OT Slot</button>`;

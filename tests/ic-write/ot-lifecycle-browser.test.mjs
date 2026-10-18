@@ -22,7 +22,7 @@ test('OT Hold and Done UI uses immutable checked selections, privileged controls
    window.modal=html=>{$('#modalBody').innerHTML=html;$('#modal').hidden=false};window.closeModal=()=>{$('#modal').hidden=true};
    window.messages=[];window.calls=[];window.refreshes=0;window.toast=x=>messages.push(x);window.reloadSchedule=async()=>{refreshes++};
    window.fixture=(overrides={})=>{
-    window.row={id:sid,request_id:rid,patient_name:'Synthetic <img src=x>',mrn:'TEST-MRN',patient_ic:'900101-**-****',age:36,diagnosis:'SYNTHETIC DIAGNOSIS',surgery:'SYNTHETIC PROCEDURE',doctor:'Synthetic Doctor',specialist:'Synthetic Specialist',sub_specialty:'Gen ORL',phone:'TEST-ONLY',postpone_count:2,request_number:'TEST-ONLY',request_status:'SCHEDULED',status:'CONFIRMED',type:'MAIN',number:1,ot_hold:false,
+    window.row={id:sid,request_id:rid,patient_name:'Synthetic <img src=x>',mrn:'TEST-MRN',patient_ic:'900101-**-****',age:36,diagnosis:'SYNTHETIC DIAGNOSIS',surgery:'SYNTHETIC PROCEDURE',doctor:'Synthetic Doctor',specialist:'Synthetic Specialist',sub_specialty:'Gen ORL',phone:'TEST-ONLY',postpone_count:2,request_number:'TEST-ONLY',request_status:'SCHEDULED',status:'CONFIRMED',type:'MAIN',number:1,ot_hold:false,deletion_status:'',
      _ic_generation:gen,_ic_edit_version:'2026-10-16T01:02:03.123456Z',_ic_review_owner:'11111111-1111-4111-8111-111111111111',...overrides};
     window._schedule=[{ot_date:'2026-10-16',slots:[row]}];window._otHoldRows=[];window.currentPage='schedule';window.user={role:'ADMIN'};
     window.token='11111111-1111-4111-8111-111111111111';window.calls=[];window.messages=[];window.pauseWrite=false;window.failWrite=false;window.pauseRead=false;$('#content').innerHTML='<div id="scheduleList"></div>';closeModal();return row;
@@ -68,6 +68,12 @@ test('OT Hold and Done UI uses immutable checked selections, privileged controls
   assert.equal(await page.locator('#actions .slot-row .COMPLETED').innerText(),'DONE');assert.equal(await page.locator('#actions .collapsed-slot.ot-done').count(),1);
   assert.equal(await page.locator('#actions [onclick^="postponeSlot"],#actions [onclick^="editSlot"],#actions [onclick^="clearSlot"],#actions [onclick^="reassignSlot"],#actions [onclick^="openOtLifecycle"]').count(),0);
   assert.match(await page.locator('#actions .slot-preview-card').textContent(),/Status: DONE/);
+  for(const role of ['STAFF','ADMIN','WEBMASTER'])for(const date of ['2026-10-15','2026-10-16','2026-10-17']){
+   await page.evaluate(({role,date})=>{user.role=role;_schedule[0].ot_date=date;window.isPastOtDate=value=>value<'2026-10-16';$('#actions').innerHTML=slotCard(row,_schedule[0],role!=='STAFF')},{role,date});
+   assert.equal(await page.locator('#actions [onclick^="reassignSlot"]').count(),role==='WEBMASTER'&&date==='2026-10-15'?1:0);
+   assert.equal(await page.locator('#actions [onclick^="postponeSlot"],#actions [onclick^="editSlot"],#actions [onclick^="clearSlot"],#actions [onclick^="openOtLifecycle"]').count(),0,'Historical reorder does not unlock Done lifecycle/ordinary editing');
+  }
+  await page.evaluate(()=>{window.isPastOtDate=()=>false;_schedule[0].ot_date='2026-10-16'});
   for(const role of ['STAFF','ADMIN','WEBMASTER']){
    await page.evaluate(role=>{user.role=role;$('#actions').innerHTML=requestManagementActions({id:rid,status:'COMPLETED',assigned_slot_id:sid},role!=='STAFF')},role);
    assert.equal(await page.locator('#actions button').count(),0);

@@ -69,9 +69,9 @@ test('existing Reassign permits only Webmaster to select an empty CLOSED slot on
       await reset('WEBMASTER',date);await open();assert.equal(await page.locator('#modalBody button').count(),0);
       await choose();assert.equal((await writes()).length,0,'Today and future CLOSED slots stay closed');
     }
-    for(const scenario of ['source-done','source-cancelled','source-approved','source-closed','source-pending-cancel','source-missing-deletion-status','target-done','occupied-request','occupied-name','missing-request-snapshot','unprotected']){
+    for(const scenario of ['source-done-admin','source-cancelled','source-approved','source-closed','source-pending-cancel','source-missing-deletion-status','target-done','occupied-request','occupied-name','missing-request-snapshot','unprotected']){
       await reset();await page.evaluate(scenario=>{
-        if(scenario==='source-done')source.request_status='COMPLETED';
+        if(scenario==='source-done-admin'){source.request_status='COMPLETED';user.role='ADMIN'}
         if(scenario==='source-cancelled')source.request_status='CANCELLED';
         if(scenario==='source-approved')source.request_status='APPROVED';
         if(scenario==='source-closed')source.status='CLOSED';
@@ -84,7 +84,7 @@ test('existing Reassign permits only Webmaster to select an empty CLOSED slot on
         if(scenario==='unprotected')protectedMode=false;
         $('#actions').innerHTML=slotCard(source,session,true);
       },scenario);
-      if(scenario==='source-done')assert.equal(await page.locator('#actions [onclick^="reassignSlot"]').count(),0);
+      if(scenario==='source-done-admin')assert.equal(await page.locator('#actions [onclick^="reassignSlot"]').count(),0);
       await open();await choose();assert.equal((await writes()).length,0,scenario);
       assert.equal(await page.locator('#modalBody button').count(),0,scenario);
     }
@@ -145,8 +145,8 @@ test('existing Reassign permits only Webmaster to select an empty CLOSED slot on
       assert.equal((await writes())[0].args.p_expected_to_request_id,occupied?'00000000-0000-4000-8000-000000000040':null);
       assert.equal(await page.evaluate(()=>confirmations.length),0);
     }
-    await reset();await page.evaluate(()=>{destination.status='CONFIRMED';destination.request_id=uuid(40);destination.patient_name='Synthetic Done';destination.request_status='COMPLETED'});
-    await open();await choose();assert.equal((await writes()).length,0,'An occupied Done destination cannot swap');
+    await reset('ADMIN');await page.evaluate(()=>{destination.status='CONFIRMED';destination.request_id=uuid(40);destination.patient_name='Synthetic Done';destination.request_status='COMPLETED';destination.deletion_status=''});
+    await open();await choose();assert.equal((await writes()).length,0,'Admin cannot swap an occupied Done destination');
     await reset();await page.evaluate(()=>{
       session.slots.push({id:uuid(50),type:'SPECIAL',number:1,request_id:null,patient_name:null,status:'CLOSED',request_status:null},
         {id:uuid(51),type:'MAIN',number:1,request_id:uuid(52),patient_name:'Synthetic Other Patient',status:'CONFIRMED',request_status:'SCHEDULED'},
