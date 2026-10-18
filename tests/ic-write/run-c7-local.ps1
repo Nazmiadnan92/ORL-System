@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase)
+if($WithPastCase){$WithOtLifecycle=$true}
 if($WithOtLifecycle){$WithSharedPostpone=$true}
 if($WithSharedPostpone){$WithSpecialVisibility=$true}
 if($WithSpecialVisibility){$WithPastOt=$true}
@@ -107,6 +108,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithOtLifecycle){
     & node --test (Join-Path $PSScriptRoot 'ot-lifecycle-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'OT Hold and Complete integration failed.'}
+  }
+  if($WithPastCase){
+    & node --test (Join-Path $PSScriptRoot 'past-case-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Historical case correction integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

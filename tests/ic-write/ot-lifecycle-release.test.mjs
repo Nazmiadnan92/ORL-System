@@ -45,27 +45,30 @@ test('064 role boundaries, stale versions, slot pinning, export eligibility and 
  assert.match(audit,/'ic_storage_preserved'/);
 });
 
-test('064 Edge manifest pins every actual input and every transitive source import after line-ending normalization',()=>{
- const manifest=JSON.parse(read('security/release/edge-064-inputs.json'));
- const deploy=read('security/release/deploy-edge-064.ps1');
+test('superseded 064 manifest remains immutable and its deployer refuses changed current sources',t=>{
+ // 065 supersedes the 064 gateway. Keep historical release pins unchanged:
+ // the 065 release test below is responsible for exact current-source coverage.
+ const manifestText=normalize(read('security/release/edge-064-inputs.json'));
+ const manifest=JSON.parse(manifestText),deploy=normalize(read('security/release/deploy-edge-064.ps1'));
+ const historicalDigest='2D43499E9E56FC762D6E3DE6D27953038BCAFE647E23E190E07556CBCE9A3BEA';
+ assert.equal(digest(manifestText),historicalDigest);assert.ok(deploy.includes(historicalDigest));
  assert.equal(manifest.format,'ORL-064-EDGE-INPUTS');assert.equal(manifest.normalization,'UTF8-NO-BOM-LF');
  assert.equal(manifest.project_ref,'imrfmilqehcrvassuvuw');assert.equal(manifest.function,'ic-requests');
  assert.equal(manifest.files.length,13);assert.equal(new Set(manifest.files.map(x=>x.path)).size,13);
- assert.ok(deploy.includes(digest(normalize(read('security/release/edge-064-inputs.json')))),'manifest itself must be pinned');
- const known=new Set(manifest.files.map(x=>x.path));
- const walk=p=>readdirSync(file(p),{withFileTypes:true}).flatMap(x=>x.isDirectory()?walk(p+'/'+x.name):[p+'/'+x.name]);
- assert.deepEqual([...known].sort(),['supabase/config.toml',...walk('supabase/functions/_shared'),...walk('supabase/functions/ic-requests')].sort());
- for(const entry of manifest.files){
-  const contents=read(entry.path);assert.equal(digest(normalize(contents)),entry.sha256,entry.path);
-  assert.equal(digest(normalize(contents.replace(/\r?\n/g,'\r\n'))),entry.sha256,'Windows checkout must preserve normalized pin');
-  for(const match of contents.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)){
-   assert.ok(match[1].startsWith('.'),'Remote/package imports need separate review');
-   const imported=new URL(match[1],file(entry.path));const path=fileURLToPath(imported).slice(fileURLToPath(root).length).replaceAll('\\','/');
-   assert.ok(known.has(path),'Unpinned imported source: '+path);
-  }
- }
+ const changed=manifest.files.filter(entry=>digest(normalize(read(entry.path)))!==entry.sha256);
+ assert.ok(changed.length>0,'065 must not silently repin the historical 064 release manifest');
  assert.doesNotMatch(deploy,/docs\//);assert.doesNotMatch(deploy,/Get-FileHash|secrets\s+(?:list|set|unset)|pg_dump|pg_restore/);
  assert.match(deploy,/Unreviewed Deno configuration/);assert.match(deploy,/Compare-Object \(\$known/);
+ const pwsh=read('security/release/Pasang-Edge-064.cmd').match(/^"([^"]+pwsh\.exe)"/m)?.[1];
+ if(!pwsh||!existsSync(pwsh)){t.skip('Historical manifest verified; pinned PowerShell unavailable for refusal execution');return}
+ // Execute definitions only, not the outer deploy routine or any network command.
+ const functions=deploy.slice(deploy.indexOf('function Get-FileDigest'),deploy.indexOf('function Get-VerifiedInstallReport'));
+ const quote=value=>"'"+value.replaceAll("'","''")+"'";
+ const script="$ErrorActionPreference='Stop';"+functions+"\n"+
+  '$root='+quote(fileURLToPath(root))+';$manifestFile='+quote(fileURLToPath(file('security/release/edge-064-inputs.json')))+
+  ";$manifestHash='"+historicalDigest+"';$orlProjectRef='imrfmilqehcrvassuvuw';"+
+  "try{Test-ReviewedEdgeInputs;throw 'Historical deployer incorrectly accepted current inputs.'}catch{if($_.Exception.Message-notlike 'Reviewed Edge input changed:*'){throw};'REFUSED_CHANGED_INPUTS'}";
+ assert.equal(execFileSync(pwsh,['-NoProfile','-Command',script],{encoding:'utf8',timeout:15000}).trim(),'REFUSED_CHANGED_INPUTS');
 });
 
 test('064 Edge release requires fresh sanitized installation evidence, exact project, pinned CLI and explicit separate deployment confirmation',()=>{

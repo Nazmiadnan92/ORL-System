@@ -5,7 +5,7 @@ export function createIcTransport({ baseUrl, publishableKey, session, fetchImpl 
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Invalid backend URL.');
   const endpoint = new URL('/functions/v1/ic-requests', base);
   return async (operation, payload) => {
-    if (!['OT_LIFECYCLE','OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
+    if (!['PAST_VIEW','PAST_SAVE','OT_LIFECYCLE','OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
     const token = session();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) throw new Error('Please sign in again.');
     let response;
@@ -74,6 +74,22 @@ const protectedRpcs = new Set(['orl_create_request', 'orl_edit_scheduled_request
   'orl_move_postponed_checked', 'orl_db_remove_patient', 'orl_db_export', 'orl_db_import', 'orl_ic_convert_legacy_backup']);
 const generationReads = new Set(['orl_get_schedule', 'orl_get_requests', 'orl_get_deletions', 'orl_db_find_patient', 'orl_db_cancelled', 'orl_db_duplicates']);
 const generationUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+const pastFields=['patient_name','mrn','age','age_months','diagnosis','surgery','doctor','specialist','sub_specialty','phone','remark','patient_ic'];
+const pastStatuses=['DRAFT','CONFIRMED','PENDING REVIEW','APPROVED','REJECTED','SCHEDULED','CANCELLED','COMPLETED'];
+const pastObject=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+const pastTimestamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)&&Number.isFinite(Date.parse(value));
+function validPastView(view,slot){
+ if(!pastObject(view)||view.slot_id!==slot||![view.slot_id,view.session_id,view.generation].every(generationUuid)
+  ||!['ADD','EDIT'].includes(view.mode)||!/^\d{4}-\d{2}-\d{2}$/.test(view.ot_date||'')||!Number.isFinite(Date.parse(view.ot_date))
+  ||!['MAIN','SPECIAL'].includes(view.slot_type)||!Number.isSafeInteger(view.slot_number)||view.slot_number<1
+  ||!['AVAILABLE','CLOSED','RESERVED','CONFIRMED'].includes(view.slot_status)||!['ACTIVE','CANCELLED','HOLIDAY','CLOSED'].includes(view.session_status)
+  ||!Number.isSafeInteger(view.postpone_count)||view.postpone_count<0||typeof view.ot_hold!=='boolean'||!/^[a-f0-9]{64}$/.test(view.snapshot||''))return false;
+ if(view.mode==='ADD')return view.request_id===null&&view.request_status===null&&view.expected_version===null&&view.patient===null
+  &&['AVAILABLE','CLOSED'].includes(view.slot_status)&&!view.ot_hold&&view.postpone_count===0;
+ if(!generationUuid(view.request_id)||!pastTimestamp(view.expected_version)||!pastStatuses.includes(view.request_status)||!pastObject(view.patient))return false;
+ if(!pastFields.every(key=>key==='age'||key==='age_months'?view.patient[key]===null||Number.isInteger(view.patient[key])&&view.patient[key]>=0&&view.patient[key]<=(key==='age'?130:11):typeof view.patient[key]==='string'))return false;
+ return /^(?:|\d{6}-\*{2}-\*{4}|\*{6}-\*{2}-\d{4}|\*{4,8}[A-Za-z0-9]{4}|\*{4})$/.test(view.patient.patient_ic);
+}
 function tagReadGeneration(value,generation,reviewOwner){
   if(Array.isArray(value))return value.map(x=>tagReadGeneration(x,generation,reviewOwner));
   if(value&&typeof value==='object')return {...Object.fromEntries(Object.entries(value).map(([k,v])=>[k,tagReadGeneration(v,generation,reviewOwner)])),_ic_generation:generation,...(reviewOwner?{_ic_review_owner:reviewOwner}:{})};
@@ -178,8 +194,38 @@ export function createPendingCreation({ storage, key, send, withLock, session = 
 export function createIcRpcRouter({ send, legacy, session, creation }) {
   const controlActions={orl_set_session:null,orl_set_slot_closed:'SLOT_CLOSED',orl_save_holiday:'HOLIDAY_SAVE',
     orl_delete_holiday:'HOLIDAY_DELETE',orl_generate_public_holidays:'HOLIDAY_GENERATE',orl_clear_all_holidays:'HOLIDAY_CLEAR',orl_save_settings:'SETTINGS'};
-  const issued=new WeakSet(),used=new WeakSet();
+  const issued=new WeakSet(),used=new WeakSet(),pastIssued=new WeakMap(),pastUsed=new WeakSet();
   return async (name, args = {}) => {
+    if(name==='orl_ic_past_case_view'){
+      const owner=session();if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      if(!generationUuid(args.p_slot_id))throw Error('Reload the historical slot.');
+      const response=await send('PAST_VIEW',{slot_id:args.p_slot_id}),view=response?.result;
+      if(session()!==owner||!validPastView(view,args.p_slot_id))throw Error('Historical record could not be verified. Reload and check the slot.');
+      const context=Object.freeze({mode:view.mode,slot_id:view.slot_id,request_id:view.request_id,generation:view.generation,
+        snapshot:view.snapshot,expected_version:view.expected_version,ot_date:view.ot_date,status:view.request_status});
+      pastIssued.set(context,owner);
+      return {...view,patient:view.patient===null?null:{...view.patient},_ic_past_context:context};
+    }
+    if(name==='orl_ic_past_case_save'){
+      const owner=session(),c=args.p_context,data=args.p_data;
+      if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      if(!pastObject(c)||pastIssued.get(c)!==owner||pastUsed.has(c)||!generationUuid(args.p_request_id)
+        ||(c.mode==='EDIT'&&args.p_request_id!==c.request_id)||!pastObject(data)||JSON.stringify(data).length>16384
+        ||!Object.entries(data).every(([key,value])=>pastFields.includes(key)&&typeof value==='string')
+        ||!['KEEP','SET'].includes(args.p_ic_mode)||(c.mode==='ADD'&&args.p_ic_mode!=='SET')
+        ||(args.p_ic_mode==='KEEP'?Object.prototype.hasOwnProperty.call(data,'patient_ic'):typeof data.patient_ic!=='string'||/[*•]/.test(data.patient_ic))
+        ||typeof args.p_reason!=='string'||!args.p_reason.trim()||args.p_reason.length>2000
+        ||typeof args.p_password!=='string'||!args.p_password||args.p_password.length>1024)
+        throw Error('Reload the historical slot and review the details, reason and password.');
+      pastUsed.add(c); // An uncertain save is never retried from the same review.
+      const response=await send('PAST_SAVE',{mode:c.mode,slot_id:c.slot_id,request_id:args.p_request_id,data:{...data},reason:args.p_reason,
+        ic_mode:args.p_ic_mode,password:args.p_password,generation:c.generation,snapshot:c.snapshot,expected_version:c.expected_version});
+      const result=response?.result;
+      if(session()!==owner||result?.request_id!==args.p_request_id||result?.slot_id!==c.slot_id||result?.ot_date!==c.ot_date
+        ||result?.mode!==c.mode||result?.status!==(c.mode==='ADD'?'SCHEDULED':c.status)||!pastTimestamp(result?.updated_at))
+        throw Error('Historical save not confirmed. Reload and check the slot before another action.');
+      return result;
+    }
     if(name==='orl_get_ot_hold_requests'){
       const owner=session();if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
       const view=await legacy(name,{p_session_token:owner});

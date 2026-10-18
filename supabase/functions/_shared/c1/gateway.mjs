@@ -7,6 +7,7 @@ import { validControl, validControlView } from './controls.mjs';
 import { prepareC2Backfill, verifyC2Identities } from './c2-maintenance.mjs';
 import { verifyC3Reveal } from './c3-reveal.mjs';
 import { verifyOtExport } from './ot-export.mjs';
+import { handlePastCase } from './past-cases.mjs';
 import { C1_BACKUP_BODY_BYTES, C1_RATE_MAX_REQUESTS, C1_RATE_WINDOW_SECONDS, C1_SMALL_BODY_BYTES, backupWithinRuntimePolicy } from './runtime-policy.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
@@ -56,6 +57,7 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
       if (!['BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(body.operation) && JSON.stringify(body).length > C1_SMALL_BODY_BYTES) throw new Error('Invalid');
     } catch { return reply(400, { error: 'Invalid or oversized protected request.' }); }
 
+    if(['PAST_VIEW','PAST_SAVE'].includes(body.operation))return handlePastCase({body,actor,token,rpc,cryptoConfig,reply});
     if(body.operation==='OT_LIFECYCLE'){
       if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
       if(!exact(body,['operation','request_id','slot_id','action','reason','generation','expected_version'])
