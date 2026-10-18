@@ -62,6 +62,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
       readablePages:setup.getAttribute('scale')==='69'&&setup.getAttribute('fitToHeight')==='0'&&!setup.hasAttribute('fitToWidth')&&doc.querySelector('pageSetUpPr').getAttribute('fitToPage')==='0',
       wholeBlocks:[...doc.querySelectorAll('rowBreaks brk')].every(b=>(Number(b.getAttribute('id'))-11)%6===0),
       patientRows:rows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<12+Math.max(1,n)*6).length,
+      fixedPatientHeight:rows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<12+Math.max(1,n)*6).every(r=>r.getAttribute('ht')==='20'&&r.getAttribute('customHeight')==='1'),
       wardPairs:Array.from({length:Math.max(1,n)},(_,i)=>12+i*6).every(first=>[0,2,4].every(offset=>doc.querySelector('mergeCell[ref="D'+(first+offset)+':D'+(first+offset+1)+'"]'))),
       signatureLine:['B','C','D'].every(col=>{const cell=doc.querySelector('c[r="'+col+signatureRow+'"]'),xf=outputXfs[Number(cell?.getAttribute('s')||0)];return outputBorders[Number(xf.getAttribute('borderId')||0)].querySelector('bottom')?.hasAttribute('style')}),
       pages:ends.length,worksheetChildren:[...doc.documentElement.children].map(child=>child.localName),
@@ -71,7 +72,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
     }
    }return out;
   });
-  for(const row of result)assertWorksheetOrder(row.worksheetChildren);
+  for(const row of result){assertWorksheetOrder(row.worksheetChildren);assert.ok(row.fixedPatientHeight,'Every patient row, including an empty list, keeps template height 20')}
   for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.n>0&&row.fullIc);assert.equal(row.hasMask,row.n>0&&!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea&&row.pagesFit&&row.footerOnce);assert.ok(row.fontDeltas.every(n=>n===0));assert.equal(row.patientRows,Math.max(1,row.n)*6);assert.ok(row.wardPairs,'Every patient has three separate two-row Ward/Gender/Weight fields');assert.ok(row.signatureLine,'Signature line follows the final patient');assert.ok(row.a4&&row.landscape&&row.readablePages&&row.wholeBlocks&&row.repeatedHeader&&row.dynamicDate);if(row.n>=6)assert.ok(row.pages>1,'Additional patients add pages at the same scale')}
   const dimensionVariants=await page.evaluate(async()=>{
    const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',out=[];
@@ -113,6 +114,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
      const row=Number(c.getAttribute('r').slice(1)),at=(col,r)=>clinical.querySelector('[r="'+col+r+'"]')?.textContent;
      return at('B',row)===sample.patient_name&&at('B',row+2)===sample.patient_ic&&at('B',row+3)===sample.mrn;
     }),
+    fixedContinuationHeight:[...clinical.querySelectorAll('row')].filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<Number(clinical.querySelectorAll('row')[clinical.querySelectorAll('row').length-6].getAttribute('r'))).every(r=>r.getAttribute('ht')==='20'),
     breaks:[...clinical.querySelectorAll('rowBreaks brk')].map(b=>Number(b.getAttribute('id'))),maxHeight:Math.max(...[...clinical.querySelectorAll('row')].map(r=>Number(r.getAttribute('ht'))||15))};
   });
   assertWorksheetOrder(layout.worksheetChildren);
@@ -120,7 +122,20 @@ test('actual Excel builder and export modal: full IC only after protected respon
   assert.ok(layout.footerArial14,'Footer labels retain effective Arial 14');assert.ok(layout.signatureLine,'Signature has bottom borders across B25:D25');
   assert.equal(layout.widthPx,1268,'Column widths retain the uploaded template proportions');
   assert.ok(layout.exactDiagnosis&&layout.exactProcedure&&layout.continuation&&layout.identifiedBlocks,'Long clinical content continues without loss and keeps patient identifiers');
-  assert.ok(layout.breaks.length>0&&layout.breaks.every(id=>(id-11)%6===0));assert.ok(layout.maxHeight<80);
+  assert.ok(layout.breaks.length>0&&layout.breaks.every(id=>(id-11)%6===0));assert.ok(layout.maxHeight<80);assert.ok(layout.fixedContinuationHeight,'Long text adds fixed-height blocks rather than stretching rows');
+  const wrapping=await page.evaluate(()=>{
+   const limits=[[162,2],[162,1],[162,1],[42,6],[190,6],[183,6],[64,6]],out=[];
+   for(const text of ['SHORT','SYNTHETIC LONG WORDS '.repeat(50),'W'.repeat(400),'First line\nSecond line\n'.repeat(15),'ÉTAPE SYNTHÉTIQUE 中文 '.repeat(20)]){
+    for(const [width,lines]of limits){const parts=otTextPieces(text,width,lines);out.push({preserved:parts.map(p=>p.text).join('')===text,bounded:parts.every(p=>p.lines<=lines)})}
+    for(const fullIc of [false,true]){
+     const patient={...sample,patient_name:text,patient_ic:'P'+'9'.repeat(50),mrn:'M'.repeat(70),diagnosis:text,surgery:text,sub_specialty:text};
+     const before=JSON.stringify(patient),blocks=otPatientBlocks(patient,0,'2030-01-01',fullIc);
+     out.push({preserved:blocks.map(b=>b.cells[4]).join('')===clinicalUpper(text)&&blocks.map(b=>b.cells[5]).join('')===clinicalUpper(text)&&JSON.stringify(patient)===before,
+      bounded:blocks.every(b=>b.height===20&&b.cells.every((cell,i)=>otTextPieces(cell,limits[i][0],10000)[0].lines<=limits[i][1]))});
+    }
+   }return out;
+  });
+  for(const check of wrapping){assert.ok(check.preserved,'Continuation retains every character without changing the source');assert.ok(check.bounded,'Each populated field stays within its fixed-height line budget')}
   const staleRejected=await page.evaluate(async()=>{
    const parts=await readOtTemplate(template.slice(0));
    const original=new TextDecoder().decode(parts['xl/worksheets/sheet1.xml']);
@@ -142,8 +157,9 @@ test('actual Excel builder and export modal: full IC only after protected respon
      const patient={...sample,patient_ic:input},before=JSON.stringify(patient);
      const blob=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[patient],{fullIc});
      const entries=await readOtTemplate(await blob.arrayBuffer()),doc=new DOMParser().parseFromString(new TextDecoder().decode(entries['xl/worksheets/sheet1.xml']),'application/xml');
-     const cell=doc.querySelector('c[r="B14"]');
-     out.push({input,fullIc,expected:fullIc?expected:maskPatientIc(input),actual:cell?.querySelector('t')?.textContent||'',textType:cell?.getAttribute('t'),unchanged:before===JSON.stringify(patient)});
+     const rows=[...doc.querySelectorAll('sheetData row')],footerStart=Number(rows[rows.length-6].getAttribute('r'));
+     const identityCells=[...doc.querySelectorAll('c')].filter(c=>{const ref=c.getAttribute('r'),row=Number(ref.slice(1));return /^B\d+$/.test(ref)&&row>=14&&row<footerStart&&(row-14)%6===0});
+     out.push({input,fullIc,expected:fullIc?expected:maskPatientIc(input),actual:identityCells.map(c=>c.querySelector('t')?.textContent||'').join(''),textType:identityCells.every(c=>c.getAttribute('t')==='inlineStr')?'inlineStr':'invalid',unchanged:before===JSON.stringify(patient)});
     }
    }return out;
   });
@@ -164,6 +180,8 @@ test('actual Excel builder and export modal: full IC only after protected respon
     const data=await page.evaluate(async n=>Array.from(new Uint8Array(await (await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},Array.from({length:n},(_,i)=>({...sample,patient_name:'Synthetic Patient '+(i+1),diagnosis:'SYNTHETIC LONG DIAGNOSIS FOR PRINT LAYOUT VERIFICATION',surgery:'SYNTHETIC PROCEDURE FOR PRINT LAYOUT VERIFICATION'})))).arrayBuffer())),n);
     await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,`synthetic-${n}.xlsx`),new Uint8Array(data));
    }
+   const overflow=await page.evaluate(async()=>Array.from(new Uint8Array(await (await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[{...sample,patient_name:'Synthetic Patient With A Long Name For Continuation Test',diagnosis:'SYNTHETIC DIAGNOSIS FIRST LINE\nSECOND LINE\nTHIRD LINE\nFOURTH LINE\nFIFTH LINE\nSIXTH LINE\nSEVENTH LINE END',surgery:'SYNTHETIC PROCEDURE STEP ONE VIA ENDOSCOPIC APPROACH FOLLOWED BY STEP TWO AND EXTENDED VERIFICATION OF THE OPERATIVE FIELD WITH FINAL CHECK END MARKER'}],{fullIc:true})).arrayBuffer())));
+   await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,'synthetic-overflow.xlsx'),new Uint8Array(overflow));
   }
   const holdGate=await page.evaluate(()=>{
    const slots=_schedule[0].slots;_schedule[0].slots=slots.map(slot=>({...slot,ot_hold:true}));

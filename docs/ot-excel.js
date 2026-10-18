@@ -42,9 +42,10 @@ function otExportIdentity(value){
 function otPatientBlocks(patient,index,date,fullIc){
  const values=[patientNameCase(patient.patient_name),fullIc?otExportIdentity(patient.patient_ic):maskPatientIc(patient.patient_ic),
   clinicalUpper(patient.mrn),patientAgeText(patient,date,true),clinicalUpper(patient.diagnosis),clinicalUpper(patient.surgery),patient.sub_specialty];
- // Conservative inner widths for the wider uploaded template. Keep the font
- // unchanged; long clinical text continues in complete six-row blocks.
- const limits=[[162,4],[162,2],[162,2],[42,16],[190,16],[183,16],[64,16]];
+ // Each template row stays 20pt: name spans two rows (40pt), IC/MRN one
+ // each (20pt), and clinical fields six (120pt). Conservative inner widths
+ // and line budgets keep Arial 14 unchanged; overflow gets another block.
+ const limits=[[162,2],[162,1],[162,1],[42,6],[190,6],[183,6],[64,6]];
  const fields=values.map((value,i)=>otTextPieces(value,...limits[i])),count=Math.max(...fields.map(p=>p.length)),blocks=[];
  for(let part=0;part<count;part++){
   const cells=fields.map(p=>p[part]||{text:'',lines:1});
@@ -52,9 +53,7 @@ function otPatientBlocks(patient,index,date,fullIc){
   // outside the same audited/fullIc authorization used for its first block.
   if(part)for(const i of [0,1,2,3,6])if(fields[i].length===1)cells[i]=fields[i][0];
   if(part&&!cells[0].text)cells[0]={text:'Kes '+(index+1),lines:1};
-  const height=Math.ceil(Math.max(20.1,(cells[0].lines*19+4)/2,cells[1].lines*19+2,cells[2].lines*19+2,
-   (Math.max(...cells.slice(3).map(c=>c.lines))*19+8)/6)*10)/10;
-  blocks.push({number:index+1,part,cells:cells.map(c=>c.text),height});
+  blocks.push({number:index+1,part,cells:cells.map(c=>c.text),height:20});
  }
  return blocks;
 }
@@ -79,7 +78,7 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const cloneRows=(source,delta,height)=>source.map(original=>{const row=original.cloneNode(true);row.setAttribute('r',Number(row.getAttribute('r'))+delta);all(row,'c').forEach(c=>c.setAttribute('r',shift(c.getAttribute('r'),delta)));if(height){row.setAttribute('ht',height);row.setAttribute('customHeight','1')}rows.append(row);return row});
  setCell(rowAt(4),'A','TARIKH: '+formatOtDocumentDate(session.ot_date)+'.');
  const blocks=patients.flatMap((patient,index)=>otPatientBlocks(patient,index,session.ot_date,fullIc));
- if(!blocks.length)blocks.push({number:'',part:0,cells:['No scheduled patients.','','','','','',''],height:20.1});
+ if(!blocks.length)blocks.push({number:'',part:0,cells:['No scheduled patients.','','','','','',''],height:20});
  const headerHeight=sourceRows.filter(r=>Number(r.getAttribute('r'))<=11).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
  // Preserve the uploaded template's fixed print scale. Disable fit-to-page so
  // manual breaks are honoured; more patients add pages, never smaller fonts.
