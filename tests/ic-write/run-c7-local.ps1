@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase,[switch]$WithClosedPastReassign)
+if($WithClosedPastReassign){$WithPastCase=$true}
 if($WithPastCase){$WithOtLifecycle=$true}
 if($WithOtLifecycle){$WithSharedPostpone=$true}
 if($WithSharedPostpone){$WithSpecialVisibility=$true}
@@ -112,6 +113,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithPastCase){
     & node --test (Join-Path $PSScriptRoot 'past-case-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Historical case correction integration failed.'}
+  }
+  if($WithClosedPastReassign){
+    & node --test (Join-Path $PSScriptRoot 'closed-past-reassign-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Closed past slot reassignment integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort
