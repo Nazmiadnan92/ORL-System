@@ -1,5 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname,resolve} from 'node:path';import {pathToFileURL} from 'node:url';
+// CT_Worksheet is an ordered sequence, even when optional sheetViews is absent.
+// https://github.com/dotnet/Open-XML-SDK/blob/main/data/schemas/schemas_openxmlformats_org_spreadsheetml_2006_main.json
+const worksheetOrder='sheetPr dimension sheetViews sheetFormatPr cols sheetData sheetCalcPr sheetProtection protectedRanges scenarios autoFilter sortState dataConsolidate customSheetViews mergeCells phoneticPr conditionalFormatting dataValidations hyperlinks printOptions pageMargins pageSetup headerFooter rowBreaks colBreaks customProperties cellWatches ignoredErrors drawing legacyDrawing legacyDrawingHF drawingHF picture oleObjects controls webPublishItems tableParts extLst'.split(' ');
+function assertWorksheetOrder(children){
+ const positions=children.map(name=>worksheetOrder.indexOf(name));
+ assert.ok(positions.every((position,i)=>position>=0&&(!i||position>=positions[i-1])),`Worksheet children must follow the OOXML sequence: ${children.join(', ')}`);
+ assert.equal(children.filter(name=>name==='dimension').length,1,'Exactly one dimension is present');
+}
 test('actual Excel builder and export modal: full IC only after protected response; cancel/signout/failures do not download',async()=>{
  const {chromium}=await import(pathToFileURL(resolve(dirname(process.execPath),'..','node_modules','playwright','index.mjs')));
  const browser=await chromium.launch({executablePath:'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',headless:true});
@@ -56,14 +64,30 @@ test('actual Excel builder and export modal: full IC only after protected respon
       patientRows:rows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<12+Math.max(1,n)*6).length,
       wardPairs:Array.from({length:Math.max(1,n)},(_,i)=>12+i*6).every(first=>[0,2,4].every(offset=>doc.querySelector('mergeCell[ref="D'+(first+offset)+':D'+(first+offset+1)+'"]'))),
       signatureLine:['B','C','D'].every(col=>{const cell=doc.querySelector('c[r="'+col+signatureRow+'"]'),xf=outputXfs[Number(cell?.getAttribute('s')||0)];return outputBorders[Number(xf.getAttribute('borderId')||0)].querySelector('bottom')?.hasAttribute('style')}),
-      pages:ends.length,
+      pages:ends.length,worksheetChildren:[...doc.documentElement.children].map(child=>child.localName),
       repeatedHeader:book.querySelector('definedName[name="_xlnm.Print_Titles"]')?.textContent==="'OT List'!$1:$11",
       dynamicDate:doc.querySelector('[r="A4"]').textContent.includes('2030'),
       printArea:book.querySelector('definedName[name="_xlnm.Print_Area"]')?.textContent==="'OT List'!$A$1:$J$"+(23+(Math.max(1,n)-1)*6)&&lastRow===23+(Math.max(1,n)-1)*6&&doc.querySelector('dimension').getAttribute('ref')==='A1:J'+lastRow});
     }
    }return out;
   });
+  for(const row of result)assertWorksheetOrder(row.worksheetChildren);
   for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.n>0&&row.fullIc);assert.equal(row.hasMask,row.n>0&&!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea&&row.pagesFit&&row.footerOnce);assert.ok(row.fontDeltas.every(n=>n===0));assert.equal(row.patientRows,Math.max(1,row.n)*6);assert.ok(row.wardPairs,'Every patient has three separate two-row Ward/Gender/Weight fields');assert.ok(row.signatureLine,'Signature line follows the final patient');assert.ok(row.a4&&row.landscape&&row.readablePages&&row.wholeBlocks&&row.repeatedHeader&&row.dynamicDate);if(row.n>=6)assert.ok(row.pages>1,'Additional patients add pages at the same scale')}
+  const dimensionVariants=await page.evaluate(async()=>{
+   const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',out=[];
+   for(const variant of ['no-views','with-views','existing-correct','existing-at-end','no-sheetPr']){
+    const parts=await readOtTemplate(template.slice(0)),doc=new DOMParser().parseFromString(new TextDecoder().decode(parts['xl/worksheets/sheet1.xml']),'application/xml'),root=doc.documentElement;
+    const sourceHasViews=!!doc.querySelector('sheetViews'),sourceHasDimension=!!doc.querySelector('dimension');
+    if(variant==='with-views'){const views=doc.createElementNS(ns,'sheetViews'),view=doc.createElementNS(ns,'sheetView');view.setAttribute('workbookViewId','0');views.append(view);root.insertBefore(views,doc.querySelector('sheetFormatPr'))}
+    if(variant.startsWith('existing-')){const dim=doc.createElementNS(ns,'dimension');dim.setAttribute('ref','A1:J999');root.insertBefore(dim,variant==='existing-correct'?doc.querySelector('sheetFormatPr'):null)}
+    if(variant==='no-sheetPr')doc.querySelector('sheetPr').remove();
+    parts['xl/worksheets/sheet1.xml']=new XMLSerializer().serializeToString(doc);
+    const blob=await buildOtExcel(await createDocxBlob(parts).arrayBuffer(),{ot_date:'2030-01-01'},[sample]);
+    const generated=await readOtTemplate(await blob.arrayBuffer()),sheet=new DOMParser().parseFromString(new TextDecoder().decode(generated['xl/worksheets/sheet1.xml']),'application/xml');
+    out.push({variant,sourceHasViews,sourceHasDimension,children:[...sheet.documentElement.children].map(child=>child.localName),ref:sheet.querySelector('dimension').getAttribute('ref')});
+   }return out;
+  });
+  for(const row of dimensionVariants){assert.equal(row.sourceHasViews,false,'Actual v072 template lacks optional sheetViews');assert.equal(row.sourceHasDimension,false);assertWorksheetOrder(row.children);assert.equal(row.ref,'A1:J23',row.variant)}
   const layout=await page.evaluate(async()=>{
    const parts=await readOtTemplate(template.slice(0)),decode=new TextDecoder(),parse=p=>new DOMParser().parseFromString(decode.decode(p),'application/xml');
    const doc=parse(parts['xl/worksheets/sheet1.xml']),styles=parse(parts['xl/styles.xml']),book=parse(parts['xl/workbook.xml']);
@@ -83,7 +107,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
    const output=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[patient],{fullIc:true}),generated=await readOtTemplate(await output.arrayBuffer()),clinical=parse(generated['xl/worksheets/sheet1.xml']);
    const allCells=[...clinical.querySelectorAll('c')],columnText=col=>allCells.filter(c=>new RegExp('^'+col+'[0-9]+$').test(c.getAttribute('r'))&&Number(c.getAttribute('r').match(/\d+/)[0])>=12).map(c=>c.querySelector('t')?.textContent||'').join('');
    return{cellsSafe,stringsSafe,metaSafe,blankPatientRows:[...doc.querySelectorAll('row')].filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=23).every(r=>![...r.querySelectorAll('c')].some(c=>c.querySelector('v,t'))),
-    widthPx,footerArial14,signatureLine,
+    widthPx,footerArial14,signatureLine,worksheetChildren:[...clinical.documentElement.children].map(child=>child.localName),
     exactDiagnosis:columnText('E')===long,exactProcedure:columnText('F')===long,continuation:clinical.documentElement.textContent.includes('Sambungan'),
     identifiedBlocks:allCells.filter(c=>/^A[0-9]+$/.test(c.getAttribute('r'))&&c.querySelector('t')?.textContent==='1').every(c=>{
      const row=Number(c.getAttribute('r').slice(1)),at=(col,r)=>clinical.querySelector('[r="'+col+r+'"]')?.textContent;
@@ -91,6 +115,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
     }),
     breaks:[...clinical.querySelectorAll('rowBreaks brk')].map(b=>Number(b.getAttribute('id'))),maxHeight:Math.max(...[...clinical.querySelectorAll('row')].map(r=>Number(r.getAttribute('ht'))||15))};
   });
+  assertWorksheetOrder(layout.worksheetChildren);
   assert.ok(layout.cellsSafe&&layout.stringsSafe&&layout.metaSafe&&layout.blankPatientRows,'Public template contains only approved static labels and blank patient cells');
   assert.ok(layout.footerArial14,'Footer labels retain effective Arial 14');assert.ok(layout.signatureLine,'Signature has bottom borders across B25:D25');
   assert.equal(layout.widthPx,1268,'Column widths retain the uploaded template proportions');

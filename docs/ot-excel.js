@@ -101,7 +101,11 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  if(used+footerHeight>bodyBudget)breaks.push(footerStart-1);
  cloneRows(footer,delta);footerMerges.forEach(ref=>addMerge(shift(ref,delta)));
  merges.setAttribute('count',String(all(merges,'mergeCell').length));
- let dimension=all(sheet,'dimension')[0];if(!dimension){dimension=sheet.createElementNS(ns,'dimension');sheet.documentElement.insertBefore(dimension,all(sheet,'sheetViews')[0])}dimension.setAttribute('ref','A1:J'+lastRow);
+ // OOXML requires dimension after optional sheetPr and before all other sheet
+ // content. The approved template has no sheetViews; never append it at the end.
+ let dimension=all(sheet,'dimension')[0];if(!dimension)dimension=sheet.createElementNS(ns,'dimension');
+ const firstContent=Array.from(sheet.documentElement.children).find(node=>node!==dimension&&node.localName!=='sheetPr');
+ sheet.documentElement.insertBefore(dimension,firstContent||null);dimension.setAttribute('ref','A1:J'+lastRow);
  const names=all(book,'definedNames')[0];for(const[name,value]of [['_xlnm.Print_Area',"'OT List'!$A$1:$J$"+lastRow],['_xlnm.Print_Titles',"'OT List'!$1:$11"]]){
   let item=all(names,'definedName').find(n=>n.getAttribute('name')===name);if(!item){item=book.createElementNS(ns,'definedName');item.setAttribute('name',name);item.setAttribute('localSheetId','0');names.append(item)}item.textContent=value;
  }
