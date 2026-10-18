@@ -71,6 +71,7 @@ test('OT Hold and Done UI uses immutable checked selections, privileged controls
   for(const role of ['STAFF','ADMIN','WEBMASTER'])for(const date of ['2026-10-15','2026-10-16','2026-10-17']){
    await page.evaluate(({role,date})=>{user.role=role;_schedule[0].ot_date=date;window.isPastOtDate=value=>value<'2026-10-16';$('#actions').innerHTML=slotCard(row,_schedule[0],role!=='STAFF')},{role,date});
    assert.equal(await page.locator('#actions [onclick^="reassignSlot"]').count(),role==='WEBMASTER'&&date==='2026-10-15'?1:0);
+   assert.equal(await page.locator('#actions [onclick^="openUndoDone"]').count(),role==='WEBMASTER'&&date<='2026-10-16'?1:0);
    assert.equal(await page.locator('#actions [onclick^="postponeSlot"],#actions [onclick^="editSlot"],#actions [onclick^="clearSlot"],#actions [onclick^="openOtLifecycle"]').count(),0,'Historical reorder does not unlock Done lifecycle/ordinary editing');
   }
   await page.evaluate(()=>{window.isPastOtDate=()=>false;_schedule[0].ot_date='2026-10-16'});

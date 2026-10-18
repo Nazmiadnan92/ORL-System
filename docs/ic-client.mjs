@@ -5,7 +5,7 @@ export function createIcTransport({ baseUrl, publishableKey, session, fetchImpl 
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Invalid backend URL.');
   const endpoint = new URL('/functions/v1/ic-requests', base);
   return async (operation, payload) => {
-    if (!['PAST_VIEW','PAST_SAVE','OT_LIFECYCLE','OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
+    if (!['PAST_VIEW','PAST_SAVE','OT_UNDO_DONE','OT_LIFECYCLE','OT_EXPORT','SEARCH','REVEAL','UNSCHEDULED_COUNT','REPAIR_VIEW','REPAIR','CONTROL_VIEW','CONTROL','CREATE', 'PREPARE_CREATE', 'RESOLVE_CREATE', 'CONFIRM', 'ASSIGN', 'REVIEW', 'CLEAR', 'DELETE_REQUEST', 'DELETE_RESOLVE', 'EDIT', 'MOVE', 'REASSIGN', 'REMOVE', 'BACKUP_EXPORT', 'BACKUP_RESTORE', 'BACKUP_CONVERT'].includes(operation)) throw new Error('Unsupported protected operation.');
     const token = session();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) throw new Error('Please sign in again.');
     let response;
@@ -231,6 +231,21 @@ export function createIcRpcRouter({ send, legacy, session, creation }) {
       const view=await legacy(name,{p_session_token:owner});
       if(session()!==owner||!generationUuid(view?.generation)||!Array.isArray(view?.requests))throw Error('Reload OT Hold.');
       return tagReadGeneration(view.requests,view.generation,owner);
+    }
+    if(name==='orl_ic_undo_done'){
+      const owner=session(),reason=typeof args.p_reason==='string'?args.p_reason.trim():null;
+      if(!owner||args.p_session_token!==owner)throw Error('Please sign in again.');
+      if(![args.p_request_id,args.p_slot_id,args.p_generation].every(generationUuid)
+        ||typeof args.p_expected_version!=='string'||!Number.isFinite(Date.parse(args.p_expected_version))
+        ||!reason||reason.length>4096||typeof args.p_password!=='string'||!args.p_password||args.p_password.length>1024)
+        throw Error('Reload the patient and review the Undo Done reason and website password.');
+      // The form consumes its reviewed snapshot before dispatch. This route never retries or refreshes it.
+      const response=await send('OT_UNDO_DONE',{password:args.p_password,request_id:args.p_request_id,slot_id:args.p_slot_id,reason,
+        generation:args.p_generation,expected_version:args.p_expected_version});
+      const result=response?.result;
+      if(session()!==owner||result?.request_id!==args.p_request_id||result?.slot_id!==args.p_slot_id||result?.action!=='UNDO_DONE'
+        ||result?.status!=='SCHEDULED'||typeof result?.ot_hold!=='boolean')throw Error('Undo Done not confirmed. Reload the patient and Audit Log before another action.');
+      return {request_id:result.request_id,slot_id:result.slot_id,action:result.action,status:result.status,ot_hold:result.ot_hold};
     }
     if(name==='orl_ic_ot_lifecycle'){
       const owner=session(),action=args.p_action,reason=args.p_reason;

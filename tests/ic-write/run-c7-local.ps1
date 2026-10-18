@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase,[switch]$WithClosedPastReassign,[switch]$WithDonePastReassign)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase,[switch]$WithClosedPastReassign,[switch]$WithDonePastReassign,[switch]$WithUndoDone)
+if($WithUndoDone){$WithDonePastReassign=$true}
 if($WithDonePastReassign){$WithClosedPastReassign=$true}
 if($WithClosedPastReassign){$WithPastCase=$true}
 if($WithPastCase){$WithOtLifecycle=$true}
@@ -122,6 +123,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithDonePastReassign){
     & node --test (Join-Path $PSScriptRoot 'done-past-reassign-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Completed past slot reassignment integration failed.'}
+  }
+  if($WithUndoDone){
+    & node --test (Join-Path $PSScriptRoot 'undo-done-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Webmaster Undo Done integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

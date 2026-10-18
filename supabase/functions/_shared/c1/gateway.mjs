@@ -58,6 +58,20 @@ export function createIcGateway({ enabled = false, origins, rpc, cryptoConfig, r
     } catch { return reply(400, { error: 'Invalid or oversized protected request.' }); }
 
     if(['PAST_VIEW','PAST_SAVE'].includes(body.operation))return handlePastCase({body,actor,token,rpc,cryptoConfig,reply});
+    if(body.operation==='OT_UNDO_DONE'){
+      if(actor.role!=='WEBMASTER')return reply(403,{error:'Webmaster access required.'});
+      if(!exact(body,['operation','password','request_id','slot_id','reason','generation','expected_version'])
+        ||!password(body.password)||![body.request_id,body.slot_id,body.generation].every(x=>typeof x==='string'&&uuid.test(x))
+        ||!timestamp(body.expected_version)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>4096)
+        return reply(400,{error:'Invalid Undo Done request. Reload the patient and enter your current password and correction reason.'});
+      try{
+        const result=await rpc('orl_ic_undo_done',{p_session_token:token,p_password:body.password,p_request_id:body.request_id,
+          p_slot_id:body.slot_id,p_reason:body.reason,p_generation:body.generation,p_expected_version:body.expected_version});
+        if(result?.request_id!==body.request_id||result?.slot_id!==body.slot_id||result?.status!=='SCHEDULED'
+          ||result?.action!=='UNDO_DONE'||typeof result?.ot_hold!=='boolean')throw Error('Invalid');
+        return reply(200,{result:{request_id:result.request_id,slot_id:result.slot_id,status:result.status,action:result.action,ot_hold:result.ot_hold}});
+      }catch{return reply(409,{error:'Undo Done was not confirmed. Check your current password, reload the schedule and review the patient and any active duplicate before trying again.'})}
+    }
     if(body.operation==='OT_LIFECYCLE'){
       if(!['ADMIN','WEBMASTER'].includes(actor.role))return reply(403,{error:'Admin or Webmaster access required.'});
       if(!exact(body,['operation','request_id','slot_id','action','reason','generation','expected_version'])

@@ -57,29 +57,18 @@ test('065 release audit is sanitized and requires every expected named boolean c
  assert.doesNotMatch(installer,/PENDING_REVIEWED_/);
 });
 
-test('065 Edge manifest pins every current actual input and every transitive source import',()=>{
- const manifest=JSON.parse(read('security/release/edge-065-inputs.json')),deploy=normalize(read('security/release/deploy-edge-065.ps1'));
+test('superseded 065 Edge manifest remains immutable while 068 owns current source coverage',()=>{
+ const manifestText=normalize(read('security/release/edge-065-inputs.json'));
+ const manifest=JSON.parse(manifestText),deploy=normalize(read('security/release/deploy-edge-065.ps1'));
+ const historicalDigest='20C5AFE258CFA2920D725DA33E4AB0B80DA88AC367B0B7930B6E3A0ED391191E';
+ assert.equal(digest(manifestText),historicalDigest);assert.ok(deploy.includes(historicalDigest));
  assert.equal(manifest.format,'ORL-065-EDGE-INPUTS');assert.equal(manifest.normalization,'UTF8-NO-BOM-LF');
  assert.equal(manifest.project_ref,'imrfmilqehcrvassuvuw');assert.equal(manifest.function,'ic-requests');
  assert.equal(manifest.files.length,14);assert.equal(new Set(manifest.files.map(x=>x.path)).size,14);
- assert.ok(deploy.includes(digest(normalize(read('security/release/edge-065-inputs.json')))),'manifest itself must be pinned');
- const known=new Set(manifest.files.map(x=>x.path));
- const walk=p=>readdirSync(file(p),{withFileTypes:true}).flatMap(x=>x.isDirectory()?walk(p+'/'+x.name):[p+'/'+x.name]);
- assert.deepEqual([...known].sort(),['supabase/config.toml',...walk('supabase/functions/_shared'),...walk('supabase/functions/ic-requests')].sort());
- for(const entry of manifest.files){
-  assert.match(entry.sha256,/^[A-F0-9]{64}$/);const contents=read(entry.path);
-  assert.equal(digest(normalize(contents)),entry.sha256,entry.path);
-  assert.equal(digest(normalize(contents.replace(/\r?\n/g,'\r\n'))),entry.sha256,'Windows line endings must not affect normalized pin');
-  for(const match of contents.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)){
-   assert.ok(match[1].startsWith('.'),'Remote/package imports need separate review');
-   const imported=new URL(match[1],file(entry.path));
-   const path=fileURLToPath(imported).slice(fileURLToPath(root).length).replaceAll('\\','/');
-   assert.ok(known.has(path),'Unpinned imported source: '+path);
-  }
- }
+ const changed=manifest.files.filter(entry=>digest(normalize(read(entry.path)))!==entry.sha256);
+ assert.ok(changed.length>0,'068 must not silently repin the historical 065 manifest');
  assert.doesNotMatch(deploy,/docs\//);assert.doesNotMatch(deploy,/Get-FileHash|secrets\s+(?:list|set|unset)|pg_dump|pg_restore/);
  assert.match(deploy,/Unreviewed Deno configuration/);assert.match(deploy,/Compare-Object \(\$known/);
- assert.doesNotMatch(deploy,/PENDING_REVIEWED_/);
 });
 
 test('065 Edge release requires fresh exact sanitized installation evidence, project, pinned CLI and separate explicit confirmation',()=>{
@@ -145,7 +134,7 @@ test('065 report verifier rejects stale, wrong-project, mismatched, missing and 
  }
 });
 
-test('065 manifest validator accepts reviewed current input without invoking CLI or reading private reports',t=>{
+test('065 manifest validator refuses superseding current input without invoking CLI or reading private reports',t=>{
  const pwsh=pwshPath();if(!pwsh||!existsSync(pwsh)){t.skip('Pinned local PowerShell unavailable');return}
  const deploy=normalize(read('security/release/deploy-edge-065.ps1'));
  const functions=deploy.slice(deploy.indexOf('function Get-FileDigest'),deploy.indexOf('function Get-VerifiedInstallReport'));
@@ -154,6 +143,6 @@ test('065 manifest validator accepts reviewed current input without invoking CLI
   ';$manifestFile='+quote(fileURLToPath(file('security/release/edge-065-inputs.json')))+
   ";$manifestHash='"+digest(normalize(read('security/release/edge-065-inputs.json')))+"';$orlProjectRef='imrfmilqehcrvassuvuw';"+
   "$migrationHash='"+digest(readFileSync(file(migrationPath)))+"';$auditHash='"+digest(readFileSync(file(auditPath)))+
-  "';Test-ReviewedEdgeInputs;'VALID_REVIEWED_INPUTS'";
- assert.equal(execFileSync(pwsh,['-NoProfile','-Command',script],{encoding:'utf8',timeout:15000}).trim(),'VALID_REVIEWED_INPUTS');
+  "';try{Test-ReviewedEdgeInputs;throw 'Historical deployer incorrectly accepted current inputs.'}catch{if($_.Exception.Message-notlike 'Reviewed Edge input changed:*'){throw};'REFUSED_CHANGED_INPUTS'}";
+ assert.equal(execFileSync(pwsh,['-NoProfile','-Command',script],{encoding:'utf8',timeout:15000}).trim(),'REFUSED_CHANGED_INPUTS');
 });

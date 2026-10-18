@@ -69,6 +69,7 @@ test('Done historical reordering is Webmaster-only, same-date, confirmed and pre
       await reset({sourceDone,role,date,protectedMode,destination:sourceDone?'AVAILABLE':'COMPLETED'});await draw();
       if(sourceDone){
         assert.equal(await page.locator('#actions [onclick^="reassignSlot"]').count(),allowed?1:0,`${role} ${date} protected=${protectedMode}`);
+        assert.equal(await page.locator('#actions [onclick^="openUndoDone"]').count(),role==='WEBMASTER'&&date<='2026-10-18'&&protectedMode?1:0,'Undo Done is a separate privileged correction, not ordinary editing');
         assert.equal(await page.locator('#actions [onclick^="postponeSlot"],#actions [onclick^="editSlot"],#actions [onclick^="clearSlot"],#actions [onclick^="openOtLifecycle"],#actions [onclick^="approveSlotRequest"]').count(),0,'Done remains closed to ordinary patient/lifecycle edits');
         assert.equal(await page.locator('#actions .COMPLETED').innerText(),'DONE');
       }
