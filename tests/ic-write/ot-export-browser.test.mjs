@@ -104,12 +104,14 @@ test('actual Excel builder and export modal: full IC only after protected respon
    const footerCells=[...doc.querySelectorAll('row')].filter(r=>Number(r.getAttribute('r'))>=24&&Number(r.getAttribute('r'))<=29).flatMap(r=>[...r.querySelectorAll('c')]);
    const footerArial14=footerCells.filter(c=>c.querySelector('v,t')).every(c=>cellFont(c).querySelector('name').getAttribute('val')==='Arial'&&cellFont(c).querySelector('sz').getAttribute('val')==='14');
    const signatureLine=['B25','C25','D25'].every(ref=>borders[Number(cellStyle(doc.querySelector('c[r="'+ref+'"]')).getAttribute('borderId')||0)].querySelector('bottom')?.hasAttribute('style'));
-   const long='SYNTHETIC LONG CLINICAL DESCRIPTION '.repeat(100)+'END MARKER',patient={...sample,diagnosis:long,surgery:long};
+   const long='SYNTHETIC LONG CLINICAL DESCRIPTION '.repeat(4)+'END MARKER',patient={...sample,diagnosis:long,surgery:long};
    const output=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[patient],{fullIc:true}),generated=await readOtTemplate(await output.arrayBuffer()),clinical=parse(generated['xl/worksheets/sheet1.xml']);
    const allCells=[...clinical.querySelectorAll('c')],columnText=col=>allCells.filter(c=>new RegExp('^'+col+'[0-9]+$').test(c.getAttribute('r'))&&Number(c.getAttribute('r').match(/\d+/)[0])>=12).map(c=>c.querySelector('t')?.textContent||'').join('');
    return{cellsSafe,stringsSafe,metaSafe,blankPatientRows:[...doc.querySelectorAll('row')].filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=23).every(r=>![...r.querySelectorAll('c')].some(c=>c.querySelector('v,t'))),
     widthPx,footerArial14,signatureLine,worksheetChildren:[...clinical.documentElement.children].map(child=>child.localName),
-    exactDiagnosis:columnText('E')===long,exactProcedure:columnText('F')===long,continuation:clinical.documentElement.textContent.includes('Sambungan'),
+    exactDiagnosis:columnText('E')===long,exactProcedure:columnText('F')===long,noContinuation:!clinical.documentElement.textContent.includes('Sambungan'),
+    onePatient:allCells.filter(c=>/^A[0-9]+$/.test(c.getAttribute('r'))&&c.querySelector('t')?.textContent==='1').length===1,
+    oneClinicalCell:allCells.filter(c=>/^F[0-9]+$/.test(c.getAttribute('r'))&&c.querySelector('t')?.textContent===long).length===1,
     identifiedBlocks:allCells.filter(c=>/^A[0-9]+$/.test(c.getAttribute('r'))&&c.querySelector('t')?.textContent==='1').every(c=>{
      const row=Number(c.getAttribute('r').slice(1)),at=(col,r)=>clinical.querySelector('[r="'+col+r+'"]')?.textContent;
      return at('B',row)===sample.patient_name&&at('B',row+2)===sample.patient_ic&&at('B',row+3)===sample.mrn;
@@ -121,21 +123,64 @@ test('actual Excel builder and export modal: full IC only after protected respon
   assert.ok(layout.cellsSafe&&layout.stringsSafe&&layout.metaSafe&&layout.blankPatientRows,'Public template contains only approved static labels and blank patient cells');
   assert.ok(layout.footerArial14,'Footer labels retain effective Arial 14');assert.ok(layout.signatureLine,'Signature has bottom borders across B25:D25');
   assert.equal(layout.widthPx,1268,'Column widths retain the uploaded template proportions');
-  assert.ok(layout.exactDiagnosis&&layout.exactProcedure&&layout.continuation&&layout.identifiedBlocks,'Long clinical content continues without loss and keeps patient identifiers');
-  assert.ok(layout.breaks.length>0&&layout.breaks.every(id=>(id-11)%6===0));assert.ok(layout.maxHeight<80);assert.ok(layout.fixedContinuationHeight,'Long text adds fixed-height blocks rather than stretching rows');
+  assert.ok(layout.exactDiagnosis&&layout.exactProcedure&&layout.noContinuation&&layout.onePatient&&layout.oneClinicalCell&&layout.identifiedBlocks,'Long clinical content remains intact in one patient box with identifiers once');
+  assert.ok(layout.maxHeight<80);assert.ok(layout.fixedContinuationHeight,'Long text adds 20pt rows within one box rather than stretching rows');
   const wrapping=await page.evaluate(()=>{
    const limits=[[162,2],[162,1],[162,1],[42,6],[190,6],[183,6],[64,6]],out=[];
    for(const text of ['SHORT','SYNTHETIC LONG WORDS '.repeat(50),'W'.repeat(400),'First line\nSecond line\n'.repeat(15),'ÉTAPE SYNTHÉTIQUE 中文 '.repeat(20)]){
     for(const [width,lines]of limits){const parts=otTextPieces(text,width,lines);out.push({preserved:parts.map(p=>p.text).join('')===text,bounded:parts.every(p=>p.lines<=lines)})}
     for(const fullIc of [false,true]){
      const patient={...sample,patient_name:text,patient_ic:'P'+'9'.repeat(50),mrn:'M'.repeat(70),diagnosis:text,surgery:text,sub_specialty:text};
-     const before=JSON.stringify(patient),blocks=otPatientBlocks(patient,0,'2030-01-01',fullIc);
+     const before=JSON.stringify(patient),blocks=otPatientBlocks(patient,0,'2030-01-01',fullIc),block=blocks[0];
      out.push({preserved:blocks.map(b=>b.cells[4]).join('')===clinicalUpper(text)&&blocks.map(b=>b.cells[5]).join('')===clinicalUpper(text)&&JSON.stringify(patient)===before,
-      bounded:blocks.every(b=>b.height===20&&b.cells.every((cell,i)=>otTextPieces(cell,limits[i][0],10000)[0].lines<=limits[i][1]))});
+      bounded:blocks.length===1&&block.height===20&&block.cells.every((cell,i)=>{
+       const lines=otTextPieces(cell,[172,172,172,53,200,193,74][i],10000)[0].lines;
+       return lines*18+2<=(i<3?block.identityRows[i]:block.rowCount)*20;
+      })});
     }
    }return out;
   });
-  for(const check of wrapping){assert.ok(check.preserved,'Continuation retains every character without changing the source');assert.ok(check.bounded,'Each populated field stays within its fixed-height line budget')}
+  for(const check of wrapping){assert.ok(check.preserved,'One box retains every character without changing the source');assert.ok(check.bounded,'Each populated field has enough 20pt rows')}
+  const variableBoxes=await page.evaluate(async()=>{
+   const procedure='RT TUMOR EXCISION VIA ENDOSCOPIC EAR SURGERY KIV MASTOID EXPLORATION, MRM, ET OBLITERATION, TRANSCERVICAL APPROACH, RIGHT SUPERFICIAL PAROTIDECTOMY';
+   const list=[{...sample,surgery:procedure},{...sample,patient_name:'Synthetic Second'},
+    {...sample,patient_name:'Synthetic Patient With A Very Long Name For Layout Verification Only',patient_ic:'P'+'9'.repeat(35),mrn:'M'.repeat(40)},
+    {...sample,patient_name:'Synthetic Fourth',diagnosis:'LINE ONE\nLINE TWO\nLINE THREE\nLINE FOUR\nLINE FIVE\nLINE SIX\nLINE SEVEN\nLINE EIGHT\nLINE NINE'}];
+   const before=JSON.stringify(list),blocks=list.map((p,i)=>otPatientBlocks(p,i,'2030-01-01',true)[0]);
+   const original=await readOtTemplate(template.slice(0)),output=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},list,{fullIc:true}),parts=await readOtTemplate(await output.arrayBuffer());
+   const parse=x=>new DOMParser().parseFromString(new TextDecoder().decode(x),'application/xml'),doc=parse(parts['xl/worksheets/sheet1.xml']),styles=parse(parts['xl/styles.xml']);
+   const xfs=[...styles.querySelectorAll('cellXfs xf')],borders=[...styles.querySelectorAll('borders border')];
+   const at=(col,row)=>doc.querySelector('c[r="'+col+row+'"]'),text=(col,row)=>at(col,row)?.querySelector('t')?.textContent||'';
+   const check=[],ends=[];let first=12;
+   for(const b of blocks){
+    const end=first+b.rowCount-1,icRow=first+b.identityRows[0],mrnRow=icRow+b.identityRows[1];
+    check.push(['A','C','E','F','J'].every(col=>!!doc.querySelector('mergeCell[ref="'+col+first+':'+col+end+'"]')));
+    check.push(text('A',first)===String(b.number)&&text('B',first)===b.cells[0]&&text('B',icRow)===b.cells[1]&&text('B',mrnRow)===b.cells[2]&&text('F',first)===b.cells[5]);
+    for(let row=first;row<=end;row++){
+     check.push(doc.querySelector('row[r="'+row+'"]').getAttribute('ht')==='20');
+     for(const col of 'ABCDEFGHIJ'){
+      const border=borders[Number(xfs[Number(at(col,row).getAttribute('s'))].getAttribute('borderId'))];
+      check.push(border.querySelector('top').hasAttribute('style')===(row===first));
+      check.push(border.querySelector('bottom').hasAttribute('style')===(row===end));
+     }
+    }
+    ends.push(end);first=end+1;
+   }
+   const rows=[...doc.querySelectorAll('sheetData row')],height=(a,b)=>rows.filter(r=>+r.getAttribute('r')>=a&&+r.getAttribute('r')<=b).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
+   const breaks=[...doc.querySelectorAll('rowBreaks brk')].map(b=>+b.getAttribute('id'));let start=12;
+   const pagesFit=[...breaks,first+5].every(end=>{const fits=height(1,11)+height(start,end)<=(210/25.4*72-108)/.69;start=end+1;return fits});
+   return {check,unchanged:before===JSON.stringify(list),pagesFit,wholeBoxes:breaks.every(end=>ends.includes(end)),
+    numbers:[...doc.querySelectorAll('c')].filter(c=>/^A\d+$/.test(c.getAttribute('r'))&&+c.getAttribute('r').slice(1)>=12&&c.querySelector('t')?.textContent).map(c=>c.textContent),
+    expanded:blocks[0].rowCount>6&&blocks[1].rowCount===6&&blocks[2].identityRows[0]>2,
+    footer:doc.querySelector('dimension').getAttribute('ref')==='A1:J'+(first+5),
+    fonts:new XMLSerializer().serializeToString(parse(original['xl/styles.xml']).querySelector('fonts'))===new XMLSerializer().serializeToString(styles.querySelector('fonts'))};
+  });
+  assert.ok(variableBoxes.check.every(Boolean),'Variable boxes have exact values, full-height merges and borders only at each patient boundary');
+  assert.deepEqual(variableBoxes.numbers,['1','2','3','4']);assert.ok(variableBoxes.expanded&&variableBoxes.footer&&variableBoxes.wholeBoxes&&variableBoxes.pagesFit&&variableBoxes.fonts&&variableBoxes.unchanged);
+  const oversized=await page.evaluate(async()=>{
+   try{await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[{...sample,surgery:'SYNTHETIC LONG CLINICAL DESCRIPTION '.repeat(100)}]);return false}
+   catch(error){return /too much text for one A4 patient box/.test(error.message)}
+  });assert.ok(oversized,'Impossible one-page merged text is explicitly rejected, never clipped, shrunk or duplicated');
   const staleRejected=await page.evaluate(async()=>{
    const parts=await readOtTemplate(template.slice(0));
    const original=new TextDecoder().decode(parts['xl/worksheets/sheet1.xml']);
@@ -157,8 +202,8 @@ test('actual Excel builder and export modal: full IC only after protected respon
      const patient={...sample,patient_ic:input},before=JSON.stringify(patient);
      const blob=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[patient],{fullIc});
      const entries=await readOtTemplate(await blob.arrayBuffer()),doc=new DOMParser().parseFromString(new TextDecoder().decode(entries['xl/worksheets/sheet1.xml']),'application/xml');
-     const rows=[...doc.querySelectorAll('sheetData row')],footerStart=Number(rows[rows.length-6].getAttribute('r'));
-     const identityCells=[...doc.querySelectorAll('c')].filter(c=>{const ref=c.getAttribute('r'),row=Number(ref.slice(1));return /^B\d+$/.test(ref)&&row>=14&&row<footerStart&&(row-14)%6===0});
+     const block=otPatientBlocks(patient,0,'2030-01-01',fullIc)[0];
+     const identityCells=[doc.querySelector('c[r="B'+(12+block.identityRows[0])+'"]')];
      out.push({input,fullIc,expected:fullIc?expected:maskPatientIc(input),actual:identityCells.map(c=>c.querySelector('t')?.textContent||'').join(''),textType:identityCells.every(c=>c.getAttribute('t')==='inlineStr')?'inlineStr':'invalid',unchanged:before===JSON.stringify(patient)});
     }
    }return out;
@@ -182,6 +227,11 @@ test('actual Excel builder and export modal: full IC only after protected respon
    }
    const overflow=await page.evaluate(async()=>Array.from(new Uint8Array(await (await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[{...sample,patient_name:'Synthetic Patient With A Long Name For Continuation Test',diagnosis:'SYNTHETIC DIAGNOSIS FIRST LINE\nSECOND LINE\nTHIRD LINE\nFOURTH LINE\nFIFTH LINE\nSIXTH LINE\nSEVENTH LINE END',surgery:'SYNTHETIC PROCEDURE STEP ONE VIA ENDOSCOPIC APPROACH FOLLOWED BY STEP TWO AND EXTENDED VERIFICATION OF THE OPERATIVE FIELD WITH FINAL CHECK END MARKER'}],{fullIc:true})).arrayBuffer())));
    await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,'synthetic-overflow.xlsx'),new Uint8Array(overflow));
+   const singleBox=await page.evaluate(async()=>Array.from(new Uint8Array(await (await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},[
+    {...sample,patient_name:'Pesakit Contoh',diagnosis:'CONTOH DIAGNOSIS',surgery:'RT TUMOR EXCISION VIA ENDOSCOPIC EAR SURGERY KIV MASTOID EXPLORATION, MRM, ET OBLITERATION, TRANSCERVICAL APPROACH, RIGHT SUPERFICIAL PAROTIDECTOMY'},
+    {...sample,patient_name:'Pesakit Contoh Kedua',diagnosis:'CONTOH DIAGNOSIS',surgery:'PROSEDUR RINGKAS'}
+   ],{fullIc:false})).arrayBuffer())));
+   await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,'synthetic-single-box.xlsx'),new Uint8Array(singleBox));
   }
   const holdGate=await page.evaluate(()=>{
    const slots=_schedule[0].slots;_schedule[0].slots=slots.map(slot=>({...slot,ot_hold:true}));

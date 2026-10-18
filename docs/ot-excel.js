@@ -15,7 +15,7 @@ async function readOtTemplate(buffer){
  }return entries;
 }
 // Wrap estimates use the same Arial 14 font as Excel. Pieces preserve every
-// character; unusually long clinical text continues in another six-row block.
+// character; the measured line count sizes one box for each patient.
 function otTextPieces(value,width,maxLines){
  const text=String(value??''),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
  ctx.font='14pt Arial';const lines=[];let remaining=text;
@@ -42,20 +42,14 @@ function otExportIdentity(value){
 function otPatientBlocks(patient,index,date,fullIc){
  const values=[patientNameCase(patient.patient_name),fullIc?otExportIdentity(patient.patient_ic):maskPatientIc(patient.patient_ic),
   clinicalUpper(patient.mrn),patientAgeText(patient,date,true),clinicalUpper(patient.diagnosis),clinicalUpper(patient.surgery),patient.sub_specialty];
- // Each template row stays 20pt: name spans two rows (40pt), IC/MRN one
- // each (20pt), and clinical fields six (120pt). Conservative inner widths
- // and line budgets keep Arial 14 unchanged; overflow gets another block.
- const limits=[[162,2],[162,1],[162,1],[42,6],[190,6],[183,6],[64,6]];
- const fields=values.map((value,i)=>otTextPieces(value,...limits[i])),count=Math.max(...fields.map(p=>p.length)),blocks=[];
- for(let part=0;part<count;part++){
-  const cells=fields.map(p=>p[part]||{text:'',lines:1});
-  // Keep a detached continuation page identifiable without revealing an IC
-  // outside the same audited/fullIc authorization used for its first block.
-  if(part)for(const i of [0,1,2,3,6])if(fields[i].length===1)cells[i]=fields[i][0];
-  if(part&&!cells[0].text)cells[0]={text:'Kes '+(index+1),lines:1};
-  blocks.push({number:index+1,part,cells:cells.map(c=>c.text),height:20});
- }
- return blocks;
+ // One patient, one box. Add 20pt rows inside that box, never duplicate
+ // identifiers or split the clinical text into separate patient entries.
+ const widths=[172,172,172,53,200,193,74];
+ const fields=values.map((value,i)=>otTextPieces(value,widths[i],Number.MAX_SAFE_INTEGER)[0]);
+ const textRows=lines=>Math.ceil((lines*18+2)/20);
+ const identityRows=[Math.max(2,textRows(fields[0].lines)),textRows(fields[1].lines),textRows(fields[2].lines)];
+ const rowCount=Math.max(6,identityRows.reduce((a,b)=>a+b,0)+2,...fields.slice(3).map(c=>textRows(c.lines)));
+ return[{number:index+1,cells:fields.map(c=>c.text),height:20,rowCount,identityRows}];
 }
 async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  patients=patients.filter(patient=>patient.ot_hold!==true);
@@ -70,7 +64,6 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const footer=sourceRows.filter(r=>Number(r.getAttribute('r'))>=24&&Number(r.getAttribute('r'))<=29);
  if(body.length!==6||footer.length!==6||!rowAt(29)||!['B29:E29','B12:B13','A12:A17','C12:C17','E12:E17','F12:F17','J12:J17','D12:D13','D14:D15','D16:D17'].every(ref=>mergeRefs.includes(ref)))throw Error('OT template version mismatch. Reload the website before generating.');
  const shift=(ref,delta)=>ref.replace(/(\$?[A-Z]+\$?)(\d+)/g,(_,col,n)=>col+(Number(n)+delta));
- const bodyMerges=mergeRefs.filter(ref=>{const ends=ref.match(/\d+/g).map(Number);return ends[0]>=12&&ends[1]<=17});
  const footerMerges=mergeRefs.filter(ref=>Number(ref.match(/\d+/)[0])>=24);
  sourceRows.filter(r=>Number(r.getAttribute('r'))>=12).forEach(r=>r.remove());
  all(merges,'mergeCell').filter(m=>Number(m.getAttribute('ref').match(/\d+/)[0])>=12).forEach(m=>m.remove());
@@ -78,25 +71,35 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const cloneRows=(source,delta,height)=>source.map(original=>{const row=original.cloneNode(true);row.setAttribute('r',Number(row.getAttribute('r'))+delta);all(row,'c').forEach(c=>c.setAttribute('r',shift(c.getAttribute('r'),delta)));if(height){row.setAttribute('ht',height);row.setAttribute('customHeight','1')}rows.append(row);return row});
  setCell(rowAt(4),'A','TARIKH: '+formatOtDocumentDate(session.ot_date)+'.');
  const blocks=patients.flatMap((patient,index)=>otPatientBlocks(patient,index,session.ot_date,fullIc));
- if(!blocks.length)blocks.push({number:'',part:0,cells:['No scheduled patients.','','','','','',''],height:20});
+ if(!blocks.length)blocks.push({number:'',cells:['No scheduled patients.','','','','','',''],height:20,rowCount:6,identityRows:[2,1,1]});
  const headerHeight=sourceRows.filter(r=>Number(r.getAttribute('r'))<=11).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
  // Preserve the uploaded template's fixed print scale. Disable fit-to-page so
  // manual breaks are honoured; more patients add pages, never smaller fonts.
  const printScale=69,bodyBudget=(210/25.4*72-108)/(printScale/100)-headerHeight-12;
  const footerHeight=footer.reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
- const breaks=[];let used=0;
+ const breaks=[];let used=0,nextRow=12;
  blocks.forEach((block,i)=>{
-  const first=12+i*6,height=block.height*6,last=i===blocks.length-1;
-  if(height>bodyBudget)throw Error('OT text layout could not fit safely. Contact Webmaster; no file was downloaded.');
+  const first=nextRow,height=block.height*block.rowCount,last=i===blocks.length-1;
+  if(height>bodyBudget)throw Error('OT case '+block.number+' has too much text for one A4 patient box at the original font size. Contact Webmaster to review; no file was downloaded.');
   if(used&&(used+height>bodyBudget||(last&&height+footerHeight<=bodyBudget&&used+height+footerHeight>bodyBudget))){breaks.push(first-1);used=0}
-  const cloned=cloneRows(body,i*6,block.height);bodyMerges.forEach(ref=>addMerge(shift(ref,i*6)));
+  // Top/bottom retain the template borders; extra interior rows have no
+  // horizontal divider. All original font and column styles are retained.
+  const cloned=Array.from({length:block.rowCount},(_,offset)=>{
+   const source=body[offset===0?0:offset===block.rowCount-1?5:offset===1?1:4];
+   return cloneRows([source],first+offset-Number(source.getAttribute('r')),20)[0];
+  });
+  const end=first+block.rowCount-1;
+  for(const col of ['A','C','E','F','J'])addMerge(col+first+':'+col+end);
+  let identityRow=first;
+  for(const count of block.identityRows){if(count>1)addMerge('B'+identityRow+':B'+(identityRow+count-1));identityRow+=count}
+  for(const [from,to]of [[first,first+1],[first+2,first+3],[first+4,end]])addMerge('D'+from+':D'+to);
   for(const row of cloned)for(const col of 'ABCDEFGHIJ')setCell(row,col,'');
   const[name,ic,mrn,age,diagnosis,surgery,sub]=block.cells;
   [['A',block.number],['B',name],['C',age],['E',diagnosis],['F',surgery],['J',sub]].forEach(([col,value])=>setCell(cloned[0],col,value));
-  setCell(cloned[2],'B',ic);setCell(cloned[3],'B',mrn);if(block.part)setCell(cloned[5],'B','Sambungan');
-  used+=height;
+  setCell(cloned[block.identityRows[0]],'B',ic);setCell(cloned[block.identityRows[0]+block.identityRows[1]],'B',mrn);
+  used+=height;nextRow=end+1;
  });
- const delta=(blocks.length-2)*6,footerStart=24+delta,lastRow=29+delta;
+ const footerStart=nextRow,delta=footerStart-24,lastRow=footerStart+5;
  if(used+footerHeight>bodyBudget)breaks.push(footerStart-1);
  cloneRows(footer,delta);footerMerges.forEach(ref=>addMerge(shift(ref,delta)));
  merges.setAttribute('count',String(all(merges,'mergeCell').length));
