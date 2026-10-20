@@ -151,7 +151,10 @@ test('Management starts Pending, duplicate lookup sits under MRN, and Postpone c
  const {chromium}=await import(pathToFileURL(resolve(dirname(process.execPath),'..','node_modules','playwright','index.mjs')));
  const browser=await chromium.launch({executablePath:'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',headless:true});
  try{
-  const page=await browser.newPage({viewport:{width:1180,height:900}});await page.route('**/*',route=>route.abort());await page.setContent('<main id="content"></main>');
+  const page=await browser.newPage({viewport:{width:1180,height:900}});
+  // Keep the synthetic October 20 appointment in the future as real time advances.
+  await page.clock.install({time:new Date('2026-10-16T04:00:00Z')});
+  await page.route('**/*',route=>route.abort());await page.setContent('<main id="content"></main>');
   for(const file of ['styles.css','schedule.css','mobile.css','booking-workflow.css'])await page.addStyleTag({content:await readFile(new URL('../../docs/'+file,import.meta.url),'utf8')});
   const app=await readFile(new URL('../../docs/app.js',import.meta.url),'utf8');
   const extract=name=>{let start=app.lastIndexOf('function '+name+'(');assert.ok(start>=0,name);if(app.slice(start-6,start)==='async ')start-=6;const rest=app.slice(start),end=rest.search(/\n(?:async )?function /);return end<0?rest:rest.slice(0,end)};

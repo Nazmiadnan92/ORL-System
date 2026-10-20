@@ -1,4 +1,5 @@
-param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase,[switch]$WithClosedPastReassign,[switch]$WithDonePastReassign,[switch]$WithUndoDone)
+param([switch]$WithOtExport,[switch]$WithSessionHelperGuard,[switch]$WithPostponeVersion,[switch]$WithMaintenance,[switch]$WithBookingWorkflow,[switch]$WithStatistics,[switch]$WithSharedStatistics,[switch]$WithPastOt,[switch]$WithSpecialVisibility,[switch]$WithSharedPostpone,[switch]$WithOtLifecycle,[switch]$WithPastCase,[switch]$WithClosedPastReassign,[switch]$WithDonePastReassign,[switch]$WithUndoDone,[switch]$WithExactDuplicates)
+if($WithExactDuplicates){$WithUndoDone=$true}
 if($WithUndoDone){$WithDonePastReassign=$true}
 if($WithDonePastReassign){$WithClosedPastReassign=$true}
 if($WithClosedPastReassign){$WithPastCase=$true}
@@ -127,6 +128,10 @@ create function extensions.http_get(varchar) returns extensions.http_response la
   if($WithUndoDone){
     & node --test (Join-Path $PSScriptRoot 'undo-done-integration.test.mjs')
     if($LASTEXITCODE-ne0){throw 'Webmaster Undo Done integration failed.'}
+  }
+  if($WithExactDuplicates){
+    & node --test (Join-Path $PSScriptRoot 'exact-duplicates-integration.test.mjs')
+    if($LASTEXITCODE-ne0){throw 'Exact full-identity duplicate detection integration failed.'}
   }
 }finally{
   $env:ORL_IC_TEST_PSQL=$orlOldPsql;$env:ORL_IC_TEST_PORT=$orlOldPort

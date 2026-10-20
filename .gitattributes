@@ -26,3 +26,5 @@
 /security/release/audit-done-past-reassign.sql text eol=lf
 /supabase/068_undo_done.sql text eol=lf
 /security/release/audit-undo-done.sql text eol=lf
+/supabase/069_exact_identity_duplicates.sql text eol=lf
+/security/release/audit-exact-duplicates.sql text eol=lf
