@@ -42,7 +42,9 @@ test('actual Excel builder and export modal: full IC only after protected respon
    const out=[];
    const original=await readOtTemplate(template.slice(0)),decodeXml=v=>new DOMParser().parseFromString(new TextDecoder().decode(v),'application/xml');
    const originalSizes=[...decodeXml(original['xl/styles.xml']).querySelectorAll('fonts font sz')].map(s=>Number(s.getAttribute('val')));
-   for(const n of [0,1,2,6,11,12,16]){
+   const originalSheet=decodeXml(original['xl/worksheets/sheet1.xml']),originalFooter=[...originalSheet.querySelectorAll('row')].filter(r=>+r.getAttribute('r')>=24&&+r.getAttribute('r')<=29);
+   const footerShape=rows=>rows.map(row=>({height:row.getAttribute('ht'),cells:[...row.querySelectorAll('c')].map(c=>({style:c.getAttribute('s'),type:c.getAttribute('t'),content:c.innerHTML}))}));
+   for(const n of [0,1,2,3,4,6,11,12,16]){
     const list=Array.from({length:n},()=>({...sample}));
     for(const fullIc of [false,true]){
      const blob=await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},list,{fullIc});
@@ -63,6 +65,9 @@ test('actual Excel builder and export modal: full IC only after protected respon
       wholeBlocks:[...doc.querySelectorAll('rowBreaks brk')].every(b=>(Number(b.getAttribute('id'))-11)%6===0),
       patientRows:rows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<12+Math.max(1,n)*6).length,
       fixedPatientHeight:rows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<12+Math.max(1,n)*6).every(r=>r.getAttribute('ht')==='20'&&r.getAttribute('customHeight')==='1'),
+      footerSpacing:rows.slice(-6,-4).map(r=>+r.getAttribute('ht')),
+      footerLabelsUnchanged:JSON.stringify(footerShape(rows.slice(-4)))===JSON.stringify(footerShape(originalFooter.slice(-4))),
+      marginsUnchanged:doc.querySelector('pageMargins').outerHTML===originalSheet.querySelector('pageMargins').outerHTML,
       wardPairs:Array.from({length:Math.max(1,n)},(_,i)=>12+i*6).every(first=>[0,2,4].every(offset=>doc.querySelector('mergeCell[ref="D'+(first+offset)+':D'+(first+offset+1)+'"]'))),
       signatureLine:['B','C','D'].every(col=>{const cell=doc.querySelector('c[r="'+col+signatureRow+'"]'),xf=outputXfs[Number(cell?.getAttribute('s')||0)];return outputBorders[Number(xf.getAttribute('borderId')||0)].querySelector('bottom')?.hasAttribute('style')}),
       pages:ends.length,worksheetChildren:[...doc.documentElement.children].map(child=>child.localName),
@@ -72,7 +77,13 @@ test('actual Excel builder and export modal: full IC only after protected respon
     }
    }return out;
   });
-  for(const row of result){assertWorksheetOrder(row.worksheetChildren);assert.ok(row.fixedPatientHeight,'Every patient row, including an empty list, keeps template height 20')}
+  for(const row of result){
+   assertWorksheetOrder(row.worksheetChildren);assert.ok(row.fixedPatientHeight,'Every patient row, including an empty list, keeps template height 20');
+   assert.deepEqual(row.footerSpacing,[12,24],'Only the empty gap and signature-line space are compacted');
+   assert.ok(row.footerLabelsUnchanged&&row.marginsUnchanged,'Footer text, effective styles, populated row heights and print margins stay unchanged');
+   if(row.n<=3)assert.equal(row.pages,1,'Up to three standard patient boxes and the signature fit on one A4 page without shrinking text');
+   if(row.n===6)assert.equal(row.pages,2,'Six standard boxes use two full pages, not an extra page for the last patient and signature');
+  }
   for(const row of result){assert.equal(row.count,row.n);assert.equal(row.hasRaw,row.n>0&&row.fullIc);assert.equal(row.hasMask,row.n>0&&!row.fullIc);assert.equal(row.formulas,0);assert.ok(row.printArea&&row.pagesFit&&row.footerOnce);assert.ok(row.fontDeltas.every(n=>n===0));assert.equal(row.patientRows,Math.max(1,row.n)*6);assert.ok(row.wardPairs,'Every patient has three separate two-row Ward/Gender/Weight fields');assert.ok(row.signatureLine,'Signature line follows the final patient');assert.ok(row.a4&&row.landscape&&row.readablePages&&row.wholeBlocks&&row.repeatedHeader&&row.dynamicDate);if(row.n>=6)assert.ok(row.pages>1,'Additional patients add pages at the same scale')}
   const dimensionVariants=await page.evaluate(async()=>{
    const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',out=[];
@@ -221,7 +232,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
   assert.ok(held.noHeld&&held.unchanged,'Hold exclusions never enter the file or mutate the snapshot');assert.deepEqual(held.numbers,['1','2']);assert.equal(held.included,'Synthetic Included');
   if(process.env.ORL_OT_LAYOUT_QA_DIR){
    await mkdir(process.env.ORL_OT_LAYOUT_QA_DIR,{recursive:true});
-   for(const n of [0,1,2,6,11,12,16]){
+   for(const n of [0,1,2,3,4,6,11,12,16]){
     const data=await page.evaluate(async n=>Array.from(new Uint8Array(await (await buildOtExcel(template.slice(0),{ot_date:'2030-01-01'},Array.from({length:n},(_,i)=>({...sample,patient_name:'Synthetic Patient '+(i+1),diagnosis:'SYNTHETIC LONG DIAGNOSIS FOR PRINT LAYOUT VERIFICATION',surgery:'SYNTHETIC PROCEDURE FOR PRINT LAYOUT VERIFICATION'})))).arrayBuffer())),n);
     await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,`synthetic-${n}.xlsx`),new Uint8Array(data));
    }

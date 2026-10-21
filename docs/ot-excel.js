@@ -63,6 +63,10 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const body=sourceRows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<=17);
  const footer=sourceRows.filter(r=>Number(r.getAttribute('r'))>=24&&Number(r.getAttribute('r'))<=29);
  if(body.length!==6||footer.length!==6||!rowAt(29)||!['B29:E29','B12:B13','A12:A17','C12:C17','E12:E17','F12:F17','J12:J17','D12:D13','D14:D15','D16:D17'].every(ref=>mergeRefs.includes(ref)))throw Error('OT template version mismatch. Reload the website before generating.');
+ // These two empty template rows were 60pt each, pushing a third standard
+ // patient and the signature onto a mostly empty second page. Tighten only
+ // the blank gap and signature-line space; patient rows, text and fonts stay intact.
+ footer.slice(0,2).forEach((row,i)=>{row.setAttribute('ht',String(i===0?12:24));row.setAttribute('customHeight','1')});
  const shift=(ref,delta)=>ref.replace(/(\$?[A-Z]+\$?)(\d+)/g,(_,col,n)=>col+(Number(n)+delta));
  const footerMerges=mergeRefs.filter(ref=>Number(ref.match(/\d+/)[0])>=24);
  sourceRows.filter(r=>Number(r.getAttribute('r'))>=12).forEach(r=>r.remove());
