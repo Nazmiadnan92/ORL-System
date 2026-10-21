@@ -13,6 +13,7 @@
     PATIENT_POSTPONED: 'OT postponed', OT_POSTPONED: 'OT postponed', PATIENT_REASSIGNED: 'OT moved earlier', OT_SLOT_REASSIGNED: 'Slot changed',
     OT_HOLD_PLACED: 'Case put on Hold', OT_HOLD_REMOVED: 'Hold removed', OT_HOLD_MOVED: 'Held case rescheduled', OT_MARKED_DONE: 'Marked as Done', OT_DONE_REVERSED: 'Done status undone',
     PAST_CASE_ADDED: 'Past case added', PAST_CASE_CORRECTED: 'Past case corrected', OT_SESSION_UPDATED: 'OT day updated', OT_SLOT_CLOSED: 'Slot closed', OT_SLOT_REOPENED: 'Slot reopened',
+    OT_DAY_NOTE_ADDED: 'Day Note added', OT_DAY_NOTE_UPDATED: 'Day Note updated', OT_DAY_NOTE_REMOVED: 'Day Note removed',
     HOLIDAY_OVERRIDE_ACTIVATED: 'OT enabled on blocked day', HOLIDAY_SAVED: 'Holiday / blocked day saved', HOLIDAY_DELETED: 'Holiday / blocked day removed',
     HOLIDAYS_GENERATED: 'Holidays added', ALL_HOLIDAYS_CLEARED: 'All holiday entries removed', SETTINGS_UPDATED: 'System settings saved',
     IC_FULL_REVEAL: 'Full IC access approved', OT_LIST_FULL_IC_GENERATED: 'OT list export approved',
@@ -54,6 +55,9 @@
     var reason = function (value) { return suffix('Reason', value); };
     var route = function () { return get('from') && get('to') ? ': ' + date(get('from')) + ' → ' + date(get('to')) : ''; };
     switch (action) {
+      case 'OT_DAY_NOTE_ADDED': case 'OT_DAY_NOTE_UPDATED': case 'OT_DAY_NOTE_REMOVED':
+        summary = ({OT_DAY_NOTE_ADDED:'Added',OT_DAY_NOTE_UPDATED:'Updated',OT_DAY_NOTE_REMOVED:'Removed'})[action] + ' the reminder for this OT date.' + ot();
+        note = 'Bookings are unchanged. Note history is kept in Technical details.'; break;
       case 'LOGIN': summary = /password change/i.test(raw) ? 'Signed in. Password change required.' : 'Signed in to the system.'; break;
       case 'USER_CREATED': case 'USER_UPDATED': case 'USER_DELETED':
         summary = ({USER_CREATED:'Created', USER_UPDATED:'Updated', USER_DELETED:'Deleted'})[action] + ' account.';

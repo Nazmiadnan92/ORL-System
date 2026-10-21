@@ -1,0 +1,15 @@
+/* Every note remains bold and legible, independent of the site's colour theme. */
+.ot-day-note{display:block;min-width:0;max-width:100%;margin:8px 0 12px;padding:10px 12px;border:1px solid #e9cf83;border-left:4px solid #bd8c17;border-radius:8px;background:#fff5d7;color:#604713;text-align:left;font-size:13px;line-height:1.5;overflow-wrap:anywhere;word-break:break-word}
+.ot-day-note-label,.ot-day-note-text,.ot-day-note strong{font-weight:750}
+.ot-day-note-label{display:block;margin-bottom:2px;font-size:11px;letter-spacing:.03em;text-transform:uppercase}
+.ot-day-note-text{display:block;white-space:pre-wrap}
+.ot-day-note-unavailable{background:#fff8e8;color:#785720;border-style:dashed;border-left-style:solid}
+.ot-day-note-control{white-space:nowrap}
+.session-head>div:first-child{min-width:0}
+.ot-day-note-editor{min-width:0}.ot-day-note-date{margin:0 0 12px}.ot-day-note-help{font-size:13px;color:var(--muted,#607184);line-height:1.5}
+.ot-day-note-editor textarea{min-height:108px;max-width:100%;resize:vertical;font-weight:700;overflow-wrap:anywhere}
+.ot-day-note-count{display:block;margin-top:5px;text-align:right;color:var(--muted,#607184)}.ot-day-note-count.over-limit{color:#b83232;font-weight:700}
+.ot-day-note-preview-label{margin-top:16px;font-size:11px;font-weight:700;color:var(--muted,#607184);text-transform:uppercase;letter-spacing:.04em}
+.ot-day-note-remove{display:block;margin:12px 0;padding:10px;border:1px solid #e7bcbc;border-radius:8px;background:#fff8f8;font-size:13px}.ot-day-note-remove input{vertical-align:middle}
+.ot-day-note-message{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:var(--navy,#284b67)}
+@media(max-width:600px){.ot-day-note{font-size:13px;padding:9px 10px;margin:7px 0 10px}.ot-day-note-editor .actions{display:grid;grid-template-columns:1fr 1fr}.ot-day-note-editor .actions button{min-width:0;white-space:normal}}

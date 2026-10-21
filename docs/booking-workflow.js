@@ -103,7 +103,7 @@ async function bookingLoadDates(c,month){
         if(bookingUuid(x.id))c.slots.set(x.id,{...x,date:s.ot_date});
         return `<button type="button" class="${x.type==='SPECIAL'?'special':''}" data-booking-slot="${esc(x.id)}" ${x.status==='AVAILABLE'?'':'disabled'}>${x.type==='SPECIAL'?'★ Special':'Main'} S${Number(x.number)} · ${esc(x.status)}</button>`;
       }).join('')||'<small>No slots available. Reload the schedule before continuing.</small>';
-      return `<div class="booking-day ${s.special_title?'special-day':''}">${bookingDateHeading(s)}<div class="booking-slots">${actions}</div></div>`;
+      return `<div class="booking-day ${s.special_title?'special-day':''}">${bookingDateHeading(s)}${window.orlDayNotes?.render(s)||''}<div class="booking-slots">${actions}</div></div>`;
     }).join('')||'<p>No active OT dates in this selection.</p>';
     box.querySelectorAll('[data-booking-date]').forEach(b=>b.onclick=()=>bookingCommit(c,{date:b.dataset.bookingDate}));
     box.querySelectorAll('[data-booking-slot]').forEach(b=>b.onclick=()=>bookingCommit(c,{slot:b.dataset.bookingSlot,action:'APPROVE'}));

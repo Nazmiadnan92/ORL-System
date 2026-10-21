@@ -28,3 +28,5 @@
 /security/release/audit-undo-done.sql text eol=lf
 /supabase/069_exact_identity_duplicates.sql text eol=lf
 /security/release/audit-exact-duplicates.sql text eol=lf
+/supabase/070_ot_day_notes.sql text eol=lf
+/security/release/audit-day-notes.sql text eol=lf

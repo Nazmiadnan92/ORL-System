@@ -10,6 +10,9 @@ const {describe,table} = context.OrlAuditDisplay;
 const view = (action,details='',extra={}) => describe({action,details,...extra});
 
 const cases = [
+ ['OT_DAY_NOTE_ADDED','{"ot_date":"2027-01-13","previous_note":"","note":"No Otology cases."}','Day Note added','Added the reminder for this OT date. OT: 13-01-2027'],
+ ['OT_DAY_NOTE_UPDATED','{"ot_date":"2027-01-13","previous_note":"Before","note":"After"}','Day Note updated','Updated the reminder for this OT date. OT: 13-01-2027'],
+ ['OT_DAY_NOTE_REMOVED','{"ot_date":"2027-01-13","previous_note":"Before","note":""}','Day Note removed','Removed the reminder for this OT date. OT: 13-01-2027'],
  ['LOGIN','Custom username login','Signed in','Signed in to the system.'],
  ['LOGIN','Login pending required password change','Signed in','Signed in. Password change required.'],
  ['USER_CREATED','synthetic (STAFF); password change required','Account created','Created account: synthetic. Role: STAFF. Password change required.'],
@@ -134,6 +137,6 @@ test('frontend uses the same read-only audit endpoint and cache-busted display a
  const load=app.slice(app.indexOf('async function loadAudit()'),app.indexOf('\n',app.indexOf('async function loadAudit()')));
  assert.match(load,/rpc\('orl_get_audit',\{p_session_token:owner,p_search:/);assert.match(load,/OrlAuditDisplay.table/);
  assert.doesNotMatch(code,/\b(fetch|rpc|localStorage|sessionStorage|XMLHttpRequest)\b|Object\.hasOwn\(/);
- assert.ok(html.indexOf('audit-display.js?v=001')<html.indexOf('app.js?v=094'));
+ assert.ok(html.indexOf('audit-display.js?v=002')<html.indexOf('app.js?v=095'));
  assert.match(html,/audit-display\.css\?v=001/);
 });
