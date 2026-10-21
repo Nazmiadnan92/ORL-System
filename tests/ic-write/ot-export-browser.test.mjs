@@ -53,7 +53,8 @@ test('actual Excel builder and export modal: full IC only after protected respon
      const rows=[...doc.querySelectorAll('sheetData row')],lastRow=Number(rows.at(-1).getAttribute('r'));
      const height=(from,to)=>rows.filter(r=>Number(r.getAttribute('r'))>=from&&Number(r.getAttribute('r'))<=to).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
      const ends=[...[...doc.querySelectorAll('rowBreaks brk')].map(b=>Number(b.getAttribute('id'))),lastRow];let start=12;
-     const pagesFit=ends.every(end=>{const fits=height(1,11)+height(start,end)<=(210/25.4*72-108)/.69;start=end+1;return fits});
+     const margins=doc.querySelector('pageMargins'),printableHeight=(210/25.4-Number(margins.getAttribute('top'))-Number(margins.getAttribute('bottom')))*72;
+     const pagesFit=ends.every(end=>{const fits=(height(1,11)+height(start,end))*.69<=printableHeight;start=end+1;return fits});
      const shared=entries['xl/sharedStrings.xml']?[...decodeXml(entries['xl/sharedStrings.xml']).querySelectorAll('si')].map(s=>s.textContent):[];
      const outputStyles=decodeXml(entries['xl/styles.xml']),outputXfs=[...outputStyles.querySelectorAll('cellXfs xf')],outputBorders=[...outputStyles.querySelectorAll('borders border')];
      const signatureRow=13+Math.max(1,n)*6;
@@ -67,7 +68,7 @@ test('actual Excel builder and export modal: full IC only after protected respon
       fixedPatientHeight:rows.filter(r=>Number(r.getAttribute('r'))>=12&&Number(r.getAttribute('r'))<12+Math.max(1,n)*6).every(r=>r.getAttribute('ht')==='20'&&r.getAttribute('customHeight')==='1'),
       footerSpacing:rows.slice(-6,-4).map(r=>+r.getAttribute('ht')),
       footerLabelsUnchanged:JSON.stringify(footerShape(rows.slice(-4)))===JSON.stringify(footerShape(originalFooter.slice(-4))),
-      marginsUnchanged:doc.querySelector('pageMargins').outerHTML===originalSheet.querySelector('pageMargins').outerHTML,
+      marginsCorrect:['top','bottom'].every(side=>Math.abs(Number(margins.getAttribute(side))*25.4-15)<1e-9)&&['left','right','header','footer'].every(side=>margins.getAttribute(side)===originalSheet.querySelector('pageMargins').getAttribute(side)),
       wardPairs:Array.from({length:Math.max(1,n)},(_,i)=>12+i*6).every(first=>[0,2,4].every(offset=>doc.querySelector('mergeCell[ref="D'+(first+offset)+':D'+(first+offset+1)+'"]'))),
       signatureLine:['B','C','D'].every(col=>{const cell=doc.querySelector('c[r="'+col+signatureRow+'"]'),xf=outputXfs[Number(cell?.getAttribute('s')||0)];return outputBorders[Number(xf.getAttribute('borderId')||0)].querySelector('bottom')?.hasAttribute('style')}),
       pages:ends.length,worksheetChildren:[...doc.documentElement.children].map(child=>child.localName),
@@ -77,10 +78,38 @@ test('actual Excel builder and export modal: full IC only after protected respon
     }
    }return out;
   });
+  // Reproduce the reported 25 October layout without patient information:
+  // the middle procedure needs seven rows, so three cases occupy 19, not 18.
+  const threeBoxes=await page.evaluate(async()=>{
+   const out=[],parse=bytes=>new DOMParser().parseFromString(new TextDecoder().decode(bytes),'application/xml');
+   for(const middleRows of [7,8]){
+    const list=Array.from({length:3},(_,i)=>({...sample,patient_name:'Synthetic Case '+(i+1),diagnosis:'TEST',surgery:i===1?Array.from({length:middleRows},(_,j)=>'LINE '+(j+1)).join('\n'):'TEST'}));
+    const blocks=list.map((p,i)=>otPatientBlocks(p,i,'2026-10-25',true)[0]);
+    const blob=await buildOtExcel(template.slice(0),{ot_date:'2026-10-25'},list,{fullIc:true}),bytes=Array.from(new Uint8Array(await blob.arrayBuffer()));
+    const parts=await readOtTemplate(new Uint8Array(bytes).buffer),doc=parse(parts['xl/worksheets/sheet1.xml']),book=parse(parts['xl/workbook.xml']);
+    const lastRow=30+middleRows,rows=[...doc.querySelectorAll('sheetData row')],margins=doc.querySelector('pageMargins');
+    const breaks=[...doc.querySelectorAll('rowBreaks brk')].map(b=>Number(b.getAttribute('id')));
+    const height=(a,b)=>rows.filter(r=>+r.getAttribute('r')>=a&&+r.getAttribute('r')<=b).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
+    const available=(210/25.4-Number(margins.getAttribute('top'))-Number(margins.getAttribute('bottom')))*72;let first=12;
+    out.push({middleRows,boxRows:blocks.map(b=>b.rowCount),breaks,bytes,
+     pagesFit:[...breaks,lastRow-1].every(end=>{const fits=(height(1,11)+height(first,end)+12)*.69<=available;first=end+1;return fits}),
+     printArea:book.querySelector('definedName[name="_xlnm.Print_Area"]').textContent,
+     merges:['A12:A17','A18:A'+(17+middleRows),'A'+(18+middleRows)+':A'+(23+middleRows)].every(ref=>!!doc.querySelector('mergeCell[ref="'+ref+'"]')),
+     fixedHeight:rows.filter(r=>+r.getAttribute('r')>=12&&+r.getAttribute('r')<=23+middleRows).every(r=>r.getAttribute('ht')==='20'),
+     exactProcedure:doc.querySelector('c[r="F18"]').textContent===list[1].surgery});
+   }return out;
+  });
+  for(const row of threeBoxes){
+   assert.deepEqual(row.boxRows,[6,row.middleRows,6]);
+   assert.deepEqual(row.breaks,row.middleRows===7?[]:[25],'A 6+7+6-row list and signature fit one A4 page; a genuinely taller list keeps whole boxes on separate pages');
+   assert.equal(row.printArea,"'OT List'!$A$1:$J$"+(29+row.middleRows));
+   assert.ok(row.merges&&row.fixedHeight&&row.exactProcedure&&row.pagesFit,'No case, clinical text, row height, or A4 safety allowance is sacrificed to fit');
+   if(process.env.ORL_OT_LAYOUT_QA_DIR){await mkdir(process.env.ORL_OT_LAYOUT_QA_DIR,{recursive:true});await writeFile(resolve(process.env.ORL_OT_LAYOUT_QA_DIR,`synthetic-6-${row.middleRows}-6.xlsx`),new Uint8Array(row.bytes))}
+  }
   for(const row of result){
    assertWorksheetOrder(row.worksheetChildren);assert.ok(row.fixedPatientHeight,'Every patient row, including an empty list, keeps template height 20');
    assert.deepEqual(row.footerSpacing,[12,24],'Only the empty gap and signature-line space are compacted');
-   assert.ok(row.footerLabelsUnchanged&&row.marginsUnchanged,'Footer text, effective styles, populated row heights and print margins stay unchanged');
+   assert.ok(row.footerLabelsUnchanged&&row.marginsCorrect,'Footer text, effective styles and populated row heights stay unchanged; only vertical print margins become 15 mm');
    if(row.n<=3)assert.equal(row.pages,1,'Up to three standard patient boxes and the signature fit on one A4 page without shrinking text');
    if(row.n===6)assert.equal(row.pages,2,'Six standard boxes use two full pages, not an extra page for the last patient and signature');
   }
@@ -179,7 +208,8 @@ test('actual Excel builder and export modal: full IC only after protected respon
    }
    const rows=[...doc.querySelectorAll('sheetData row')],height=(a,b)=>rows.filter(r=>+r.getAttribute('r')>=a&&+r.getAttribute('r')<=b).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
    const breaks=[...doc.querySelectorAll('rowBreaks brk')].map(b=>+b.getAttribute('id'));let start=12;
-   const pagesFit=[...breaks,first+5].every(end=>{const fits=height(1,11)+height(start,end)<=(210/25.4*72-108)/.69;start=end+1;return fits});
+   const margins=doc.querySelector('pageMargins'),printableHeight=(210/25.4-Number(margins.getAttribute('top'))-Number(margins.getAttribute('bottom')))*72;
+   const pagesFit=[...breaks,first+5].every(end=>{const fits=(height(1,11)+height(start,end))*.69<=printableHeight;start=end+1;return fits});
    return {check,unchanged:before===JSON.stringify(list),pagesFit,wholeBoxes:breaks.every(end=>ends.includes(end)),
     numbers:[...doc.querySelectorAll('c')].filter(c=>/^A\d+$/.test(c.getAttribute('r'))&&+c.getAttribute('r').slice(1)>=12&&c.querySelector('t')?.textContent).map(c=>c.textContent),
     expanded:blocks[0].rowCount>6&&blocks[1].rowCount===6&&blocks[2].identityRows[0]>2,

@@ -79,7 +79,14 @@ async function buildOtExcel(buffer,session,patients,{fullIc=false}={}){
  const headerHeight=sourceRows.filter(r=>Number(r.getAttribute('r'))<=11).reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
  // Preserve the uploaded template's fixed print scale. Disable fit-to-page so
  // manual breaks are honoured; more patients add pages, never smaller fonts.
- const printScale=69,bodyBudget=(210/25.4*72-108)/(printScale/100)-headerHeight-12;
+ // A 19-row patient body (6+7+6) plus the signature needs slightly more
+ // height than the old 19 mm margins allow. Keep text and scale unchanged;
+ // use 15 mm vertical margins and calculate from the settings Excel receives.
+ const printScale=69,pageMargins=all(sheet,'pageMargins')[0];
+ if(!pageMargins)throw Error('OT template print margins are missing. Reload the website before generating.');
+ for(const side of ['top','bottom'])pageMargins.setAttribute(side,String(15/25.4));
+ const printableHeight=(210/25.4-Number(pageMargins.getAttribute('top'))-Number(pageMargins.getAttribute('bottom')))*72;
+ const bodyBudget=printableHeight/(printScale/100)-headerHeight-12;
  const footerHeight=footer.reduce((sum,r)=>sum+Number(r.getAttribute('ht')||15),0);
  const breaks=[];let used=0,nextRow=12;
  blocks.forEach((block,i)=>{
