@@ -14,8 +14,8 @@ function Get-ReviewedHash([string]$Path) {
  try{return [Convert]::ToHexString($sha.ComputeHash($stream))}finally{$stream.Dispose();$sha.Dispose()}
 }
 function Test-ReviewedFiles {
- if((Get-ReviewedHash $migration)-cne'5D8FF534426C0585BCDFB57B29A2CA51F3297662AF167A30FC944A9CF263695B'){throw 'Reviewed migration 070 changed.'}
- if((Get-ReviewedHash $auditFile)-cne'CD9357FF1266C80C777590E2900769A0D4E5CBF4CE6DC6249D7CDEBFC4AF32B6'){throw 'Reviewed Day Note audit changed.'}
+ if((Get-ReviewedHash $migration)-cne'16C39E80A2D91743C3507CC796E7F2901BF21FA9913C799B2F95BC3103055827'){throw 'Reviewed migration 070 changed.'}
+ if((Get-ReviewedHash $auditFile)-cne'22089F0DD1DCF14DF5A5C426150E8EBE13E4068CFEC624CF34D720877FCFE5A9'){throw 'Reviewed Day Note audit changed.'}
 }
 function Get-ValidatedAudit {
  Test-ReviewedFiles

@@ -18,13 +18,16 @@ begin
   raise exception '070: completed protected recovery/cutover baseline required.';
  end if;
  for item in select * from (values
-  ('public.orl_require_session(uuid)','ba9d29923e7269729c8025bf1e266208'),
-  ('orl_private.c1_check_generation(uuid)','5c654a99ad55c29ba66b9b74371c8239'),
-  ('orl_private.c1_redact_text(text)','aea30f10772d86163fb1aa4e2362fac3'),
-  ('public.orl_db_export(uuid,text)','685f55c7c5c33548eb79933d3beeb16d'),
-  ('public.orl_db_import_locked(uuid,text,jsonb)','097da3e68879e5e783e7cd2d6fbc2e8c')
+  ('public.orl_require_session(uuid)',array['ba9d29923e7269729c8025bf1e266208']),
+  ('orl_private.c1_check_generation(uuid)',array['5c654a99ad55c29ba66b9b74371c8239']),
+  ('orl_private.c1_redact_text(text)',array['aea30f10772d86163fb1aa4e2362fac3']),
+  -- The second exact exporter body was reviewed from read-only catalog metadata.
+  -- It differs from 016 only in leading indentation. Do not normalize arbitrary
+  -- bodies or replace the deployed exporter; both reviewed definitions stay intact.
+  ('public.orl_db_export(uuid,text)',array['685f55c7c5c33548eb79933d3beeb16d','e3ca01db6ff28a4a095eaa5addf2e192']),
+  ('public.orl_db_import_locked(uuid,text,jsonb)',array['097da3e68879e5e783e7cd2d6fbc2e8c'])
  ) v(signature,expected_md5) loop
-  if not coalesce((select prosecdef and md5(replace(prosrc,chr(13),''))=item.expected_md5
+  if not coalesce((select prosecdef and md5(replace(prosrc,chr(13),''))=any(item.expected_md5)
    and (proconfig @> array['search_path=""'] or proconfig @> array['search_path=public, extensions'])
    from pg_proc where oid=to_regprocedure(item.signature)),false) then
    raise exception '070: reviewed protected baseline differs: %',item.signature;

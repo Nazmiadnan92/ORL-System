@@ -25,6 +25,33 @@ test('070 pins an atomic additive migration and metadata-only preflight',()=>{
  assert.match(read('.gitattributes'),/\/security\/release\/audit-day-notes\.sql text eol=lf/);
 });
 
+test('070 allows only the two reviewed exporter bodies while every other baseline remains exactly pinned',()=>{
+ const baseline=sql.match(/do \$baseline\$([\s\S]*?)end \$baseline\$;/)[1];
+ const pins=source=>Object.fromEntries([...source.matchAll(/\('([^']+)',array\[([^\]]+)\]\)/g)]
+  .map(([,signature,hashes])=>[signature,[...hashes.matchAll(/'([0-9a-f]{32})'/g)].map(x=>x[1])]));
+ const exportPins=['685f55c7c5c33548eb79933d3beeb16d','e3ca01db6ff28a4a095eaa5addf2e192'];
+ assert.deepEqual(pins(baseline),{
+  'public.orl_require_session(uuid)':['ba9d29923e7269729c8025bf1e266208'],
+  'orl_private.c1_check_generation(uuid)':['5c654a99ad55c29ba66b9b74371c8239'],
+  'orl_private.c1_redact_text(text)':['aea30f10772d86163fb1aa4e2362fac3'],
+  'public.orl_db_export(uuid,text)':exportPins,
+  'public.orl_db_import_locked(uuid,text,jsonb)':['097da3e68879e5e783e7cd2d6fbc2e8c']
+ });
+ const restoreAudit=audit.slice(audit.indexOf("'restore_preserved'"),audit.indexOf("'recovery_ready'"));
+ assert.deepEqual(pins(restoreAudit),{
+  'public.orl_db_import_locked(uuid,text,jsonb)':['6523523d8a3ab3d67daa82a07d73fa4f'],
+  'public.orl_db_export(uuid,text)':exportPins
+ });
+ assert.match(baseline,/prosecdef and md5\(replace\(prosrc,chr\(13\),''\)\)=any\(item\.expected_md5\)/);
+ assert.match(restoreAudit,/not p\.prosecdef or not \(md5\(replace\(p\.prosrc,chr\(13\),''\)\)=any\(expected\.body_md5\)\)/);
+ assert.doesNotMatch(baseline+restoreAudit,/regexp_replace|\b(?:btrim|ltrim|rtrim|trim)\s*\(/i);
+ assert.match(baseline,/proconfig @> array\['search_path=""'\] or proconfig @> array\['search_path=public, extensions'\]/);
+ assert.match(baseline,/has_function_privilege\(client,signature,'EXECUTE'\)/);
+ assert.doesNotMatch(sql,/create(?: or replace)? function public\.orl_db_export\(/i);
+ assert.equal((sql.match(/fn:='public\.[^']+'::regprocedure/g)||[]).length,1);
+ assert.match(sql,/fn:='public\.orl_db_import_locked\(uuid,text,jsonb\)'::regprocedure/);
+});
+
 test('070 installer requires verified TLS, private archive validation and explicit confirmation before migration',()=>{
  assert.match(installer,/sslmode=verify-full/);assert.match(installer,/-AsSecureString/);
  assert.match(installer,/Test-OrlReviewedCa -Path \$ca -ExpectedDerSha256 '807025AD50D4ED219D2C9C7D299C004F824EB00CF7F65AFEF607D07B72E6CAFA'/);

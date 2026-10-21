@@ -44,11 +44,11 @@ select jsonb_build_object(
  'identity_tables_closed',not exists(select 1 from unnest(array['anon','authenticated','service_role']) client
   where has_table_privilege(client,'orl_private.request_identity','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')),
  'restore_preserved',not exists(select 1 from (values
-   ('public.orl_db_import_locked(uuid,text,jsonb)','6523523d8a3ab3d67daa82a07d73fa4f'),
-   ('public.orl_db_export(uuid,text)','685f55c7c5c33548eb79933d3beeb16d')
+   ('public.orl_db_import_locked(uuid,text,jsonb)',array['6523523d8a3ab3d67daa82a07d73fa4f']),
+   ('public.orl_db_export(uuid,text)',array['685f55c7c5c33548eb79933d3beeb16d','e3ca01db6ff28a4a095eaa5addf2e192'])
   ) expected(signature,body_md5)
   left join pg_proc p on p.oid=to_regprocedure(expected.signature)
-  where p.oid is null or not p.prosecdef or md5(replace(p.prosrc,chr(13),'')) is distinct from expected.body_md5
+  where p.oid is null or not p.prosecdef or not (md5(replace(p.prosrc,chr(13),''))=any(expected.body_md5))
    or not coalesce(p.proconfig @> array['search_path=public, extensions'],false)),
  'recovery_ready',orl_private.c1_recovery_ready() is true,
  'ic_storage_preserved',coalesce((orl_private.c6_stats()->>'cutover_complete')::boolean

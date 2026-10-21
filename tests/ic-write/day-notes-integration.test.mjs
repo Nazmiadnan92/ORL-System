@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync,spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {readFileSync} from 'node:fs';
 
 test('070: advisory Day Notes are role-gated, atomic, concurrent-safe, audited and preserved by protected backup/restore',async()=>{
  assert.equal(process.env.ORL_IC_TEST_C7,'1');assert.equal(process.env.ORL_IC_TEST_PORT,'55461');
@@ -13,9 +14,29 @@ test('070: advisory Day Notes are role-gated, atomic, concurrent-safe, audited a
  const call=(name,p,role='anon')=>`set role ${role};select public.${name}(${Object.entries(p).map(([k,v])=>`${k}=>${lit(v)}`).join(',')});`;
  const rpc=(name,p,role)=>JSON.parse(sql(call(name,p,role)));
  sql("do $$begin if session_user<>'orl_test_owner' or inet_server_addr() is distinct from '127.0.0.1'::inet or inet_server_port()<>55461 or current_database() !~ '^orl_day_note_test_' then raise exception 'Disposable local fixture only'; end if; end $$;");
+ const variant=process.env.ORL_DAY_NOTE_EXPORT_VARIANT||'canonical';assert.ok(['canonical','deployed'].includes(variant));
+ if(variant==='deployed')run('tests/ic-write/fixtures/backup-016-deployed-indentation.sql');
+ const exporter='public.orl_db_export(uuid,text)';
+ const exportFingerprint=()=>sql(`select jsonb_build_object('raw_body',prosrc,'security_definer',prosecdef,'configuration',proconfig,'acl',proacl,'owner',proowner) from pg_proc where oid=${lit(exporter)}::regprocedure`);
+ const exporterBefore=exportFingerprint(),exportDefinition=sql(`select pg_get_functiondef(${lit(exporter)}::regprocedure)`);
+ const expectedExportHash=variant==='canonical'?'685f55c7c5c33548eb79933d3beeb16d':'e3ca01db6ff28a4a095eaa5addf2e192';
+ assert.equal(sql(`select md5(replace(prosrc,chr(13),'')) from pg_proc where oid=${lit(exporter)}::regprocedure`),expectedExportHash);
  const tables=JSON.parse(sql("select jsonb_agg(format('%I.%I',schemaname,tablename) order by schemaname,tablename) from pg_tables where schemaname in('public','orl_private')"));
  const snapshot=()=>sql("select md5(concat_ws('|',"+tables.map(t=>"(select md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)::text,'')) from "+t+" r)").join(',')+'))');
  const denied=(fn,pattern)=>{const before=snapshot();assert.throws(fn,error=>pattern.test(String(error.stderr||error.message)));assert.equal(snapshot(),before,'Denied action writes no data');};
+ const migration=readFileSync(new URL('../../supabase/070_ot_day_notes.sql',import.meta.url),'utf8').replace(/^begin;\r?$/m,'-- outer transaction').replace(/^commit;\r?$/m,'-- outer transaction');
+ for(const changed of [
+  exportDefinition.replace("'version',1","'version',2"),
+  exportDefinition.replace('declare u public.orl_users%rowtype;',' declare u public.orl_users%rowtype;'),
+  `alter function ${exporter} security invoker;`,
+  `alter function ${exporter} set search_path=pg_catalog;`,
+  ...['public','anon','authenticated','service_role'].map(role=>`grant execute on function ${exporter} to ${role};`)
+ ]){
+  assert.notEqual(changed,exportDefinition,'Synthetic unsupported variant differs');
+  denied(()=>sql('begin;\n'+changed+';\n'+migration+'\nrollback;'),/baseline differs|protected permissions differ/);
+  assert.equal(exportFingerprint(),exporterBefore,'Rejected installation leaves exporter body/config/grants byte-identical');
+  assert.equal(sql("select count(*) from pg_attribute where attrelid='public.orl_ot_sessions'::regclass and attname in('day_note','day_note_revision') and not attisdropped"),'0');
+ }
  const oldRows=sql("select jsonb_agg(to_jsonb(s) order by id) from public.orl_ot_sessions s");
  const importFn='public.orl_db_import_locked(uuid,text,jsonb)',readFn='public.orl_get_ot_day_notes(uuid,integer)',writeFn='public.orl_set_ot_day_note(uuid,uuid,text,bigint,uuid)';
  const untouchedFunctions=()=>sql(`select md5(jsonb_agg(to_jsonb(p) order by p.oid)::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in('public','orl_private') and p.proname not in('orl_get_ot_day_notes','orl_set_ot_day_note') and p.oid<>${lit(importFn)}::regprocedure`);
@@ -24,6 +45,7 @@ test('070: advisory Day Notes are role-gated, atomic, concurrent-safe, audited a
  sql(original.replace('request_total integer:=0;','request_total integer:=0; /* synthetic drift */'));
  denied(()=>run('supabase/070_ot_day_notes.sql'),/baseline differs/);sql(original);
  run('supabase/070_ot_day_notes.sql');
+ assert.equal(exportFingerprint(),exporterBefore,'070 leaves the exact reviewed exporter untouched');
  assert.equal(sql("select jsonb_agg(to_jsonb(s)-'day_note'-'day_note_revision' order by id) from public.orl_ot_sessions s"),oldRows,'Installation preserves every prior session field');
  assert.equal(untouchedFunctions(),oldFns,'No unrelated function or grant changed');
  assert.equal(sql("select count(*) from public.orl_ot_sessions where day_note<>'' or day_note_revision<>0"),'0');
@@ -117,6 +139,8 @@ test('070: advisory Day Notes are role-gated, atomic, concurrent-safe, audited a
  // Existing protected Restore rebuilds the identity storage timestamps, but
  // all clinical records, slots and encrypted identity contents must match.
  assert.equal(clinical(true),clinicalRestoreBefore,'Backup/restore preserves original clinical records and protected contents');
+ assert.equal(exportFingerprint(),exporterBefore,'All operations and Restore leave the exporter unchanged');
+ const audit=JSON.parse(run('security/release/audit-day-notes.sql'));assert.equal(Object.keys(audit).length,10);for(const [name,ok] of Object.entries(audit))assert.equal(ok,true,variant+' audit: '+name);
  const hashes=JSON.parse(sql(`select jsonb_object_agg(oid::regprocedure::text,md5(replace(prosrc,chr(13),''))) from pg_proc where oid in(${[readFn,writeFn,importFn].map(x=>lit(x)+'::regprocedure').join(',')})`));
  console.log('070 verified function hashes:',JSON.stringify(hashes));
 });
