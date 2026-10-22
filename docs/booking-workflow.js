@@ -34,12 +34,12 @@ const bookingAdmin=()=>['ADMIN','WEBMASTER'].includes(user?.role);
 function bookingMovement(from,to){return to===from?'SAME_DATE':to<from?'REASSIGN':'POSTPONE'}
 function bookingDateHeading(s){return `<b>${esc(s.day_name||'')} ${esc(formatSystemDate(s.ot_date))}</b>${s.special_title?`<span class="booking-special-title">Special OT Day · ${esc(s.special_title)}</span>`:''}`}
 function bookingRequestActions(r){
-  if(!bookingUuid(r.id)||r.deletion_status==='PENDING')return '';
-  if(bookingAdmin()&&r.status==='APPROVED'&&!r.assigned_slot_id)return `<button class="mini" onclick="openBookingAssign('${r.id}')">Assign Slot</button>`;
+  if(!bookingUuid(r.id)||r.deletion_status==='PENDING'||r.ot_hold===true)return '';
+  if(bookingAdmin()&&['CONFIRMED','APPROVED'].includes(r.status)&&!r.assigned_slot_id)return `<button class="mini" onclick="openBookingAssign('${r.id}')">Assign OT Slot</button>`;
   if(r.assigned_slot_id&&['SCHEDULED','APPROVED','CONFIRMED'].includes(r.status))return `<button class="mini" onclick="openBookingMove('${r.id}')">Request Move</button>`;
   return '';
 }
-function bookingAlive(c){return bookingContext===c&&token===c.owner&&c.box?.isConnected}
+function bookingAlive(c){return bookingContext===c&&token===c.owner&&c.box?.isConnected&&(c.mode!=='ASSIGN'||bookingAdmin())}
 function bookingPatient(v){return `<div class="booking-context"><b>${esc(v.request_number)}</b><small>${esc(v.patient_name)} · MRN ${esc(v.mrn)}</small><small>${esc(v.surgery)}</small></div>`}
 function bookingSnapshot(v,id){
   if(!v||v.request_id!==id||!bookingUuid(v.generation)||typeof v.request_version!=='string'||!v.request_version)throw Error('Unable to verify the current record. Reopen it from Request Management.');
@@ -48,12 +48,12 @@ function bookingSnapshot(v,id){
 async function openBookingAssign(id){
   if(!bookingAdmin()||!bookingUuid(id))return;
   const owner=token;
-  modal('<h2>Assign Existing Request</h2><div id="bookingEditor">Loading current record…</div>');
+  modal('<h2>Assign OT Slot</h2><div id="bookingEditor">Loading current record…</div>');
   const box=$('#bookingEditor'),c={mode:'ASSIGN',owner,box,used:false,sequence:0};bookingContext=c;
   try{
-    c.view=bookingSnapshot(await rpc('orl_booking_assign_view',{p_session_token:owner,p_request_id:id}),id);
+    c.view=Object.freeze({...bookingSnapshot(await rpc('orl_booking_assign_view',{p_session_token:owner,p_request_id:id}),id)});
     if(!bookingAlive(c))return;
-    if(c.view.status!=='APPROVED')throw Error('Only approved, unassigned requests can use this action.');
+    if(!['CONFIRMED','APPROVED'].includes(c.view.status)||c.view.assigned_slot_id||c.view.ot_hold===true||c.view.deletion_status&&c.view.deletion_status!=='')throw Error('Only pending or approved requests without an OT slot can use this action. Reload Request Management.');
     bookingRenderPicker(c);
   }catch(e){if(bookingAlive(c))box.textContent=e.message}
 }
@@ -71,7 +71,7 @@ async function openBookingMove(id){
 }
 function bookingRenderPicker(c){
   const v=c.view,today=new Date(),initial=c.mode==='REVIEW'?v.target_date:c.preferred||v.from_date||today.toISOString().slice(0,10);
-  c.box.innerHTML=bookingPatient(v)+(c.mode==='ASSIGN'?'<p>Choose an available Main or Special slot. The existing request and postpone count are retained.</p>':
+  c.box.innerHTML=bookingPatient(v)+(c.mode==='ASSIGN'?`<p class="booking-assign-explanation">${v.status==='CONFIRMED'?'This request is pending approval. Choose an available Main or Special slot, then confirm to approve and assign it together. Nothing changes until that save succeeds.':'This request is already approved. Choose an available Main or Special slot to assign it.'} The same request, patient details and postpone count are retained.</p>`:
     `<p>Current OT: <b>${esc(formatSystemDate(v.from_date))}</b>. Earlier = Reassign; later = Postpone (+1 after approval). Same date is not allowed.</p><p>The original booking stays in place until Admin/Webmaster approves an available destination slot. Existing patient details are used; unsaved form edits are not applied.</p>`)+
     (c.mode==='REQUEST'?'<label>Reason<textarea id="bookingReason" maxlength="1000" rows="2" required placeholder="Why should the booking move?"></textarea></label>':'')+
     (c.mode==='REVIEW'?`<p>Requested date: <b>${esc(formatSystemDate(v.target_date))}</b> · ${esc(v.action)}</p><p>Reason: ${esc(v.reason)}</p><button type="button" id="bookingReject" class="danger">Reject Move Request</button>`:
@@ -128,7 +128,9 @@ async function bookingCommit(c,choice){
     }else{
       name='orl_booking_move_review';args={p_move_id:v.id,p_action:choice.action,p_target_slot:reject?null:choice.slot,p_expected_move_version:v.move_version,p_expected_request_version:v.request_version,p_generation:v.generation};
     }
-    confirmation=reject?'Reject only this move request? The original booking remains unchanged.':`${c.mode==='ASSIGN'?'Assign existing request':'Approve '+v.action} to ${formatSystemDate(slot.date)}, ${slot.type} S${slot.number}?`;
+    confirmation=reject?'Reject only this move request? The original booking remains unchanged.':c.mode==='ASSIGN'?
+      `${v.status==='CONFIRMED'?'Approve and assign this pending request':'Assign this approved request'} to ${formatSystemDate(slot.date)}, ${slot.type==='SPECIAL'?'Special':'Main'} Slot ${slot.number}?${v.status==='CONFIRMED'?' Approval and slot assignment will be saved together.':''} The postpone count stays unchanged.`:
+      `Approve ${v.action} to ${formatSystemDate(slot.date)}, ${slot.type} S${slot.number}?`;
   }
   if(!confirm(confirmation)||!bookingAlive(c))return;
   if(choice.date&&isPastOtDate(choice.date)||choice.slot&&isPastOtDate(c.slots?.get(choice.slot)?.date)){out.textContent='Past OT dates are closed to new bookings. Choose today or a future date.';return}c.used=true; // Lost responses must be reconciled by a fresh read, never retried here.
@@ -140,7 +142,7 @@ async function bookingCommit(c,choice){
       ||(c.mode==='REQUEST'?(result.status!=='PENDING'||result.target_date!==args.p_target_date):
         (result.id!==v.id||result.status!==(choice.action==='REJECT'?'REJECTED':'APPROVED')||(choice.action==='APPROVE'&&result.target_slot_id!==choice.slot))))throw Error('Result not confirmed.');
     closeModal();bookingContext=null;
-    toast(c.mode==='ASSIGN'?'Existing request assigned. Postpone count unchanged.':c.mode==='REQUEST'?'Move request submitted. The original booking remains in place.':choice.action==='REJECT'?'Move request rejected. Original booking unchanged.':'Booking moved successfully.');
+    toast(c.mode==='ASSIGN'?(v.status==='CONFIRMED'?'Request approved and assigned to the selected OT slot.':'Approved request assigned to the selected OT slot.')+' Postpone count unchanged.':c.mode==='REQUEST'?'Move request submitted. The original booking remains in place.':choice.action==='REJECT'?'Move request rejected. Original booking unchanged.':'Booking moved successfully.');
     go(bookingAdmin()?'management':'requests');
   }catch(e){
     if(!bookingAlive(c))return;

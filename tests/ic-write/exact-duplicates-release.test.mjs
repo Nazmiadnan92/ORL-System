@@ -57,5 +57,5 @@ test('069 read-only UI has Webmaster guard, retains masking and does not dispatc
  assert.deepEqual([...body.matchAll(/rpc\('([^']+)'/g)].map(x=>x[1]),['orl_db_duplicates']);
  assert.match(body,/maskPatientIc\(g.match_value\)/);assert.match(body,/separate operations/);
  assert.match(body,/owner!==token/);assert.match(body,/target!==\$\('#dbResults'\)/);
- assert.match(read('docs/index.html'),/app\.js\?v=095/);
+ assert.match(read('docs/index.html'),/app\.js\?v=096/);
 });

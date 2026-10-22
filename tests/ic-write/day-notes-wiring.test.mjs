@@ -53,7 +53,7 @@ test('Actual Day Note integration covers each date selection and preserves origi
  const active=name=>{let start=app.lastIndexOf('function '+name+'(');const rest=app.slice(start),end=rest.search(/\n(?:async )?function /);return end<0?rest:rest.slice(0,end)};
  for(const name of ['scheduleCard','loadPostponeSlots','reassignSlot','requestSlot'])assert.match(active(name),/orlDayNotes\?\.render/);
  assert.match(active('scheduleCard'),/orlDayNotes\?\.control/);assert.match(read('docs/booking-workflow.js'),/orlDayNotes\?\.render/);
- const html=read('docs/index.html');for(const file of ['day-notes-data.js?v=001','day-notes.js?v=001'])assert.ok(html.indexOf(file)>0&&html.indexOf(file)<html.indexOf('app.js?v=095'));
+ const html=read('docs/index.html');for(const file of ['day-notes-data.js?v=001','day-notes.js?v=001'])assert.ok(html.indexOf(file)>0&&html.indexOf(file)<html.indexOf('app.js?v=096'));
  const ctx=vm.createContext({});vm.runInContext(read('docs/audit-display.js'),ctx);
  for(const action of ['OT_DAY_NOTE_ADDED','OT_DAY_NOTE_UPDATED','OT_DAY_NOTE_REMOVED']){
   const row={action,details:JSON.stringify({ot_date:'2027-01-13',previous_note:'Before',note:'After',revision:2})},before=JSON.stringify(row);

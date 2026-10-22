@@ -137,6 +137,6 @@ test('frontend uses the same read-only audit endpoint and cache-busted display a
  const load=app.slice(app.indexOf('async function loadAudit()'),app.indexOf('\n',app.indexOf('async function loadAudit()')));
  assert.match(load,/rpc\('orl_get_audit',\{p_session_token:owner,p_search:/);assert.match(load,/OrlAuditDisplay.table/);
  assert.doesNotMatch(code,/\b(fetch|rpc|localStorage|sessionStorage|XMLHttpRequest)\b|Object\.hasOwn\(/);
- assert.ok(html.indexOf('audit-display.js?v=002')<html.indexOf('app.js?v=095'));
+ assert.ok(html.indexOf('audit-display.js?v=002')<html.indexOf('app.js?v=096'));
  assert.match(html,/audit-display\.css\?v=001/);
 });
